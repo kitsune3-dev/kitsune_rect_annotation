@@ -3,7 +3,6 @@ import { useAnnotation } from '../contexts/AnnotationContext';
 import ModeSelector from './ModeSelector';
 import ModeControls from './ModeControls';
 import LabelSelector from './LabelSelector';
-import Legend from './Legend';
 
 interface SidebarProps {
   statusMessage: string;
@@ -47,9 +46,8 @@ const Sidebar: React.FC<SidebarProps> = ({ statusMessage }) => {
       
       <div className="separator" />
       
-      {state.mode === 'add' && <LabelSelector />}
-      
-      <Legend />
+      {/* 矩形種別選択は常に表示 */}
+      <LabelSelector />
       
       <div className="mt-auto pt-4 text-sm text-gray-600">
         {statusMessage}

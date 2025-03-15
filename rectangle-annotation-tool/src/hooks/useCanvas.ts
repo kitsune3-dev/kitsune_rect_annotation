@@ -1,32 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useAnnotation } from '../contexts/AnnotationContext';
-import { ColorMap } from '../types/types';
+import { colorMap, borderColorMap } from '../utils/colorConstants';
+import { drawTextWithStroke, drawTextWithBackground } from '../utils/drawingUtils';
 
-// 色のマッピング
-const colorMap: ColorMap = {
-    1: "rgba(255, 0, 0, 0.3)",
-    2: "rgba(0, 255, 0, 0.3)",
-    3: "rgba(0, 0, 255, 0.3)",
-    4: "rgba(255, 255, 0, 0.3)",
-    5: "rgba(255, 0, 255, 0.3)",
-    6: "rgba(0, 255, 255, 0.3)",
-    7: "rgba(128, 0, 128, 0.3)",
-    8: "rgba(128, 128, 0, 0.3)",
-    9: "rgba(0, 128, 128, 0.3)"
-};
-
-// 枠線の色マッピング
-const borderColorMap: ColorMap = {
-    1: "rgb(255, 0, 0)",
-    2: "rgb(0, 255, 0)",
-    3: "rgb(0, 0, 255)",
-    4: "rgb(255, 255, 0)",
-    5: "rgb(255, 0, 255)",
-    6: "rgb(0, 255, 255)",
-    7: "rgb(128, 0, 128)",
-    8: "rgb(128, 128, 0)",
-    9: "rgb(0, 128, 128)"
-};
 
 export const useCanvas = () => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -38,7 +14,6 @@ export const useCanvas = () => {
     const {
         data,
         state,
-        setMode,
         startSelection,
         updateSelection,
         finishSelection,
@@ -128,7 +103,7 @@ export const useCanvas = () => {
             ctx.fillText("画像が読み込まれていません", canvas.width / 2, canvas.height / 2);
         }
 
-        // 既存のアノテーションを描画 (修正版)
+        // 既存のアノテーションを描画
         data.annotation.forEach((anno, index) => {
             const [x1, y1, x2, y2, x3, y3, x4, y4] = anno.polygon;
 
@@ -200,25 +175,88 @@ export const useCanvas = () => {
 
             // 番号振り直しモードで選択済みの場合、IDを表示
             if (state.mode === 'renumber' && isSelected) {
+                const centerX = (x1 + x3) / 2;
+                const centerY = (y1 + y3) / 2;
+                
+                // 背景円
                 ctx.fillStyle = "white";
                 ctx.strokeStyle = "black";
                 ctx.lineWidth = 2;
-                ctx.font = "bold 14px Arial";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-
-                const centerX = (x1 + x3) / 2;
-                const centerY = (y1 + y3) / 2;
-
-                // 背景円
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+                
+                // ID番号（縁取り付き）
+                drawTextWithStroke(
+                  ctx, 
+                  anno.id.toString(), 
+                  centerX, 
+                  centerY, 
+                  "black",  // 文字色
+                  "white",  // 縁取り色
+                  1.5,       // 縁取りの太さ
+                  "bold 14px Arial",
+                  "center",
+                  "middle"
+                );
+              }
 
-                // ID番号
-                ctx.fillStyle = "black";
-                ctx.fillText(anno.id.toString(), centerX, centerY);
+            // すべての矩形にラベル情報を追加
+            const rectWidth = x2 - x1;
+            const rectHeight = y3 - y1;
+
+            // ラベル背景（左上に配置）
+            const labelText = `${anno.id}: ${data.labels[anno.label_id]}`;
+
+  
+            // 矩形が十分な大きさを持つ場合の表示方法
+            if (rectWidth > 100 && rectHeight > 30) {
+                // 矩形内にラベルを表示
+                const bgColor = borderColorMap[anno.label_id].replace('rgb', 'rgba').replace(')', ', 0.7)');
+
+                drawTextWithBackground(
+                    ctx,
+                    labelText,
+                    x1 + 5,
+                    y1 + 5,
+                    {
+                        fillStyle: "white",
+                        strokeStyle: "black",
+                        strokeWidth: 2,
+                        font: "bold 12px Arial",
+                        textAlign: "left",
+                        textBaseline: "top",
+                        padding: { x: 5, y: 3 }
+                    },
+                    {
+                        fillStyle: bgColor,
+                        radius: 3  // 角丸の半径
+                    }
+                );
+            } else {
+                // 矩形が小さい場合は、矩形の上に表示
+                const bgColor = borderColorMap[anno.label_id].replace('rgb', 'rgba').replace(')', ', 0.7)');
+
+                drawTextWithBackground(
+                    ctx,
+                    labelText,
+                    x1 + (rectWidth / 2),
+                    y1 - 5,
+                    {
+                        fillStyle: "white",
+                        strokeStyle: "black",
+                        strokeWidth: 2,
+                        font: "bold 12px Arial",
+                        textAlign: "center",
+                        textBaseline: "bottom",
+                        padding: { x: 5, y: 3 }
+                    },
+                    {
+                        fillStyle: bgColor,
+                        radius: 3  // 角丸の半径
+                    }
+                );
             }
         });
 
@@ -237,6 +275,7 @@ export const useCanvas = () => {
             ctx.strokeRect(x1, y1, width, height);
         }
     }, [data.annotation, state, colorMap, borderColorMap]);
+
     // キャンバスの位置更新
     const updateCanvasPosition = useCallback(() => {
         if (!canvasRef.current) return;
