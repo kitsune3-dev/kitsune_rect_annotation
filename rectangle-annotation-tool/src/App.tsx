@@ -1,6 +1,6 @@
 import React from 'react';
 import { AnnotationProvider } from './contexts/AnnotationContext';
-import { useCanvas } from './hooks/useCanvas';
+import { useCanvas } from './hooks/canvas/useCanvas';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import Sidebar from './components/Sidebar';
 import AnnotationCanvas from './components/AnnotationCanvas';
