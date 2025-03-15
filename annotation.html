@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>矩形アノテーションツール</title>
+    <link rel="stylesheet" href="annotation.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>矩形アノテーションツール</h2>
+            
+            <div class="action-buttons">
+                <button id="undo-btn" class="btn" disabled>Undo</button>
+                <button id="redo-btn" class="btn" disabled>Redo</button>
+                <button id="save-btn" class="btn">保存</button>
+            </div>
+            
+            <div class="separator"></div>
+            <h3>矩形種別選択</h3>
+            
+            <div id="label-buttons">
+                <button class="label-btn selected" data-label-id="1">1. 章タイトル</button>
+                <button class="label-btn" data-label-id="2">2. 節タイトル</button>
+                <button class="label-btn" data-label-id="3">3. 概要</button>
+                <button class="label-btn" data-label-id="4">4. 本文</button>
+                <button class="label-btn" data-label-id="5">5. 補足</button>
+                <button class="label-btn" data-label-id="6">6. コラム</button>
+                <button class="label-btn" data-label-id="7">7. 用語解説</button>
+                <button class="label-btn" data-label-id="8">8. 図</button>
+                <button class="label-btn" data-label-id="9">9. 表</button>
+            </div>
+            
+            <div class="separator"></div>
+            <div class="legend">
+                <h3>凡例</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(255, 0, 0, 0.3);"></div>
+                    <span>章タイトル</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(0, 255, 0, 0.3);"></div>
+                    <span>節タイトル</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(0, 0, 255, 0.3);"></div>
+                    <span>概要</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(255, 255, 0, 0.3);"></div>
+                    <span>本文</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(255, 0, 255, 0.3);"></div>
+                    <span>補足</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(0, 255, 255, 0.3);"></div>
+                    <span>コラム</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(128, 0, 128, 0.3);"></div>
+                    <span>用語解説</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(128, 128, 0, 0.3);"></div>
+                    <span>図</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: rgba(0, 128, 128, 0.3);"></div>
+                    <span>表</span>
+                </div>
+            </div>
+            
+            <div class="status" id="status">
+                読み込み中...
+            </div>
+        </div>
+        
+        <div class="canvas-container" id="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="zoom-controls">
+            <button class="zoom-btn" id="zoom-in">+</button>
+            <button class="zoom-btn" id="zoom-reset">⟳</button>
+            <button class="zoom-btn" id="zoom-out">-</button>
+        </div>
+    </div>
+
+    <script src="annotation.js"></script>
+</body>
+</html>
