@@ -5,7 +5,6 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import Sidebar from './components/Sidebar';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import ZoomControls from './components/ZoomControls';
-import WheelEventSupport from './components/WheelEventSupport';
 
 const AppContent: React.FC = () => {
   const { statusMessage } = useCanvas();
@@ -17,8 +16,6 @@ const AppContent: React.FC = () => {
       <div className="relative flex-1" data-wheel-zoom-container="true">
         <AnnotationCanvas />
         <ZoomControls />
-        {/* ホイールイベントのサポートコンポーネントを追加 */}
-        <WheelEventSupport />
       </div>
     </div>
   );
