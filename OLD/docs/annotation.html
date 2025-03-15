@@ -11,6 +11,28 @@
         <div class="sidebar">
             <h2>矩形アノテーションツール</h2>
             
+            <!-- 新機能: モード選択ボタン -->
+            <div class="mode-selector">
+                <h3>モード選択</h3>
+                <div class="mode-buttons">
+                    <button class="mode-btn selected" data-mode="add">矩形追加</button>
+                    <button class="mode-btn" data-mode="delete">矩形削除</button>
+                    <button class="mode-btn" data-mode="renumber">矩形番号振り直し</button>
+                </div>
+            </div>
+            
+            <!-- 新機能: 編集モード用コントロール -->
+            <div id="mode-controls" style="display: none;">
+                <div class="action-buttons">
+                    <button id="ok-btn" class="btn">OK</button>
+                    <button id="cancel-btn" class="btn btn-secondary">キャンセル</button>
+                    <button id="delete-btn" class="btn btn-danger">削除</button>
+                    <button id="highlight-btn" class="btn btn-info">未選択矩形を強調表示</button>
+                </div>
+            </div>
+            
+            <div class="separator"></div>
+            
             <div class="action-buttons">
                 <button id="undo-btn" class="btn" disabled>Undo</button>
                 <button id="redo-btn" class="btn" disabled>Redo</button>

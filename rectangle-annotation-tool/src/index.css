@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn {
+    @apply px-3 py-2 text-white rounded cursor-pointer transition-colors;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-hover;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary-hover;
+  }
+  
+  .btn-danger {
+    @apply bg-danger hover:bg-danger-hover;
+  }
+  
+  .btn-info {
+    @apply bg-info hover:bg-info-hover;
+  }
+  
+  .btn:disabled {
+    @apply bg-gray-400 cursor-not-allowed;
+  }
+  
+  .mode-btn {
+    @apply w-full text-left my-1 p-2 border border-gray-300 rounded cursor-pointer bg-white hover:bg-gray-100;
+  }
+  
+  .mode-btn.selected {
+    @apply bg-blue-50 border-blue-500 font-semibold;
+  }
+  
+  .label-btn {
+    @apply w-full text-left my-1 p-2 border border-gray-300 rounded cursor-pointer;
+  }
+  
+  .label-btn.selected {
+    @apply bg-cyan-50 border-cyan-600;
+  }
+  
+  .separator {
+    @apply border-t border-gray-300 my-3;
+  }
+  
+  /* キャンバスコンテナのスタイルを修正 - overflow-hidden を削除 */
+  .canvas-container {
+    @apply relative flex-1 bg-gray-200;
+    min-height: 300px; /* 最小の高さを指定 */
+  }
+  
+  /* キャンバスのスタイルを明示的に定義 */
+  .canvas {
+    @apply absolute;
+    transform-origin: 0 0; /* 変換の原点 */
+    z-index: 1; /* 他の要素より前面に表示 */
+  }
+}
+
+/* グローバルなスタイル - body の overflow-hidden も削除 */
+body {
+  @apply m-0 p-0 font-sans;
+}
+
+/* デバッグ用スタイル */
+.debug-border {
+  @apply border-2 border-red-500;
+}

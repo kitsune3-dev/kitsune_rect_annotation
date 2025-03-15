@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>矩形アノテーションツール</title>
+    
+    <!-- 画像の事前読み込み -->
+    <link rel="preload" href="/test.png" as="image" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- 画像の読み込みを確認するスクリプト -->
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM loaded, preloading test image...');
+        const preloadImage = new Image();
+        preloadImage.onload = () => {
+          console.log('Test image preloaded successfully', {
+            width: preloadImage.width,
+            height: preloadImage.height
+          });
+          // グローバル変数に設定して使用可能にする
+          window.preloadedTestImage = preloadImage;
+        };
+        preloadImage.onerror = (e) => {
+          console.error('Failed to preload test image', e);
+        };
+        preloadImage.src = '/test.png';
+      });
+    </script>
+  </body>
+</html>

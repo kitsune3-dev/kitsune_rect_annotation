@@ -51,6 +51,31 @@ canvas {
     cursor: not-allowed;
 }
 
+/* 新機能: 追加ボタンスタイル */
+.btn-secondary {
+    background-color: #757575;
+}
+
+.btn-secondary:hover {
+    background-color: #616161;
+}
+
+.btn-danger {
+    background-color: #f44336;
+}
+
+.btn-danger:hover {
+    background-color: #d32f2f;
+}
+
+.btn-info {
+    background-color: #2196F3;
+}
+
+.btn-info:hover {
+    background-color: #1976D2;
+}
+
 .label-btn {
     text-align: left;
     margin: 3px 0;
@@ -65,10 +90,41 @@ canvas {
     border-color: #00acc1;
 }
 
+/* 新機能: モード選択ボタン */
+.mode-selector {
+    margin-bottom: 15px;
+}
+
+.mode-buttons {
+    display: flex;
+    flex-direction: column;
+}
+
+.mode-btn {
+    text-align: left;
+    margin: 3px 0;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.mode-btn.selected {
+    background-color: #e3f2fd;
+    border-color: #2196F3;
+    font-weight: bold;
+}
+
+.mode-btn:hover {
+    background-color: #f5f5f5;
+}
+
 .action-buttons {
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
+    flex-wrap: wrap;
 }
 
 .separator {
