@@ -66,7 +66,6 @@ export const useCanvas = () => {
     useEffect(() => {
         // public フォルダ内の画像ファイルを読み込む
         const loadImage = () => {
-            console.log('Loading image...');
             const possiblePaths = [
                 '/test.png',
                 './test.png',
@@ -76,7 +75,6 @@ export const useCanvas = () => {
 
             const img = new Image();
             img.onload = () => {
-                console.log('Image loaded successfully');
                 imageRef.current = img;
                 setIsImageLoaded(true);
 
@@ -91,7 +89,6 @@ export const useCanvas = () => {
             };
 
             img.onerror = () => {
-                console.error('Failed to load image');
                 setIsImageLoaded(false);
 
                 // プレースホルダー設定
@@ -119,28 +116,7 @@ export const useCanvas = () => {
 
         loadImage();
 
-        // グローバルイベントリスナー
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.metaKey || e.ctrlKey) {
-                setCommandKeyPressed(true);
-                updateCursorStyle();
-            }
-        };
 
-        const handleKeyUp = (e: KeyboardEvent) => {
-            if (e.key === 'Meta' || e.key === 'Control') {
-                setCommandKeyPressed(false);
-                updateCursorStyle();
-            }
-        };
-
-        document.addEventListener('keydown', handleKeyDown);
-        document.addEventListener('keyup', handleKeyUp);
-
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-            document.removeEventListener('keyup', handleKeyUp);
-        };
     }, []);
 
     // 描画更新のアニメーションフレーム
@@ -244,7 +220,6 @@ export const useCanvas = () => {
         if (!canvas) return;
 
         const handleForceRedraw = () => {
-            console.log('キャンバス強制再描画');
             requestDraw();
         };
 

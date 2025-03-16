@@ -54,7 +54,6 @@ export const useCanvasEvents = (
         }
 
         const coords = getCanvasCoordinates(e.clientX, e.clientY);
-        console.log(`マウスクリック: 位置(${Math.round(coords.x)}, ${Math.round(coords.y)}), モード: ${state.mode}`);
 
         switch (state.mode) {
             case 'add':
@@ -72,7 +71,6 @@ export const useCanvasEvents = (
                 // 矩形選択
                 const index = findRectangleAtPosition(coords.x, coords.y, annotations);
                 if (index !== -1) {
-                    console.log(`矩形発見: インデックス ${index}`);
 
                     if (state.mode === 'delete') {
                         // 削除モード: 選択トグル
@@ -233,7 +231,6 @@ export const useCanvasEvents = (
         if (!canvas) return;
 
         const handleForceRedraw = () => {
-            console.log('キャンバス強制再描画');
             drawCanvas();
         };
 

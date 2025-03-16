@@ -38,7 +38,6 @@ const ModeControls: React.FC = () => {
   // 強調表示ボタンのクリックハンドラ
   const handleHighlightClick = () => {
     flashUnselectedRectangles();
-    console.log("未選択矩形の強調表示をリクエスト");
   };
 
   if (state.mode === 'add') {
