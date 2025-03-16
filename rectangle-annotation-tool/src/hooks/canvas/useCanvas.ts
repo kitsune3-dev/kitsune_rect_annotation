@@ -6,12 +6,19 @@ import { useCanvasEvents } from './useCanvasEvents';
 import { useCanvasStatus } from './useCanvasStatus';
 import { useCanvasTouch } from './useCanvasTouch';
 
+// マージンの大きさ（ピクセル）
+export const CANVAS_MARGIN = 50;
+
 export const useCanvas = () => {
-    // 基本的な参照の設定
+    // 複数のキャンバス参照を設定
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const backgroundCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const patternCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
     const [isImageLoaded, setIsImageLoaded] = useState(false);
+    const [canvasWidth, setCanvasWidth] = useState<number>(0);
+    const [canvasHeight, setCanvasHeight] = useState<number>(0);
 
     // コンテキスト情報を取得
     const {
@@ -33,18 +40,18 @@ export const useCanvas = () => {
         updateCanvasScale
     } = useAnnotation();
 
-    // 座標変換関連のフック
+    // 座標変換関連のフック - 修正した座標変換
     const {
         getCanvasCoordinates,
         findRectangleAtPosition
-    } = useCanvasCoordinates(canvasRef, state);
+    } = useCanvasCoordinates(canvasRef, state, CANVAS_MARGIN);
 
-    // 描画関連のフック
+    // 描画関連のフック - マージンを考慮した描画
     const {
         drawCanvas,
         updateCanvasPosition,
         updateCursorStyle
-    } = useCanvasDrawing(canvasRef, imageRef, state, data);
+    } = useCanvasDrawing(canvasRef, backgroundCanvasRef, imageRef, state, data, CANVAS_MARGIN);
 
     // ステータスメッセージ関連のフック
     const {
@@ -62,6 +69,52 @@ export const useCanvas = () => {
         }
     }, [pendingDraw]);
 
+    // パターンキャンバスの描画関数 - 独立した関数として定義
+    const drawPatternCanvas = useCallback((canvas: HTMLCanvasElement, width: number, height: number) => {
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        
+        // キャンバスをクリア
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // ストライプパターンの描画
+        const stripeSize = 10;
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#e0e0e0';
+        for (let i = -canvas.height; i < canvas.width + canvas.height; i += stripeSize * 2) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + canvas.height, canvas.height);
+            ctx.lineTo(i + canvas.height - stripeSize, canvas.height);
+            ctx.lineTo(i - stripeSize, 0);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        // マージン領域をわかりやすくするための枠線
+        ctx.strokeStyle = '#cccccc';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(CANVAS_MARGIN, CANVAS_MARGIN, width, height);
+    }, []);
+
+    // 全キャンバスの位置とスケールを同時に更新する関数
+    const syncCanvasPositions = useCallback(() => {
+        if (!canvasRef.current || !backgroundCanvasRef.current || !patternCanvasRef.current) return;
+        
+        // 各キャンバスに同じスタイルを適用
+        [canvasRef.current, backgroundCanvasRef.current, patternCanvasRef.current].forEach(canvas => {
+            canvas.style.position = 'absolute';
+            canvas.style.transform = `scale(${state.view.scale})`;
+            canvas.style.transformOrigin = '0 0';
+            canvas.style.left = `${state.view.offsetX}px`;
+            canvas.style.top = `${state.view.offsetY}px`;
+        });
+    }, [state.view.scale, state.view.offsetX, state.view.offsetY]);
+
     // 画像ロード完了時の処理
     useEffect(() => {
         // public フォルダ内の画像ファイルを読み込む
@@ -78,36 +131,87 @@ export const useCanvas = () => {
                 imageRef.current = img;
                 setIsImageLoaded(true);
 
-                if (canvasRef.current) {
-                    // キャンバスのサイズを画像のサイズに設定
-                    canvasRef.current.width = img.naturalWidth || 800;
-                    canvasRef.current.height = img.naturalHeight || 600;
+                // 元の画像サイズを保存
+                const imgWidth = img.naturalWidth || 800;
+                const imgHeight = img.naturalHeight || 600;
+                setCanvasWidth(imgWidth);
+                setCanvasHeight(imgHeight);
 
-                    updateCanvasSize(canvasRef.current.width, canvasRef.current.height);
-                    drawCanvas();
+                const totalWidth = imgWidth + CANVAS_MARGIN * 2;
+                const totalHeight = imgHeight + CANVAS_MARGIN * 2;
+
+                // すべてのキャンバスのサイズを設定（マージン込み）
+                if (canvasRef.current) {
+                    canvasRef.current.width = totalWidth;
+                    canvasRef.current.height = totalHeight;
                 }
+                
+                if (backgroundCanvasRef.current) {
+                    backgroundCanvasRef.current.width = totalWidth;
+                    backgroundCanvasRef.current.height = totalHeight;
+                }
+                
+                if (patternCanvasRef.current) {
+                    patternCanvasRef.current.width = totalWidth;
+                    patternCanvasRef.current.height = totalHeight;
+                    
+                    // パターンキャンバスを描画
+                    drawPatternCanvas(patternCanvasRef.current, imgWidth, imgHeight);
+                }
+
+                // キャンバスの位置とスケールを同期
+                syncCanvasPositions();
+                
+                updateCanvasSize(imgWidth, imgHeight);
+                drawCanvas();
             };
 
             img.onerror = () => {
                 setIsImageLoaded(false);
 
-                // プレースホルダー設定
+                // プレースホルダーサイズ設定
+                const width = 800;
+                const height = 600;
+                setCanvasWidth(width);
+                setCanvasHeight(height);
+
+                const totalWidth = width + CANVAS_MARGIN * 2;
+                const totalHeight = height + CANVAS_MARGIN * 2;
+
+                // すべてのキャンバスのサイズを設定（マージン込み）
                 if (canvasRef.current) {
-                    canvasRef.current.width = 800;
-                    canvasRef.current.height = 600;
-
-                    const ctx = canvasRef.current.getContext('2d');
-                    if (ctx) {
-                        ctx.fillStyle = "#f0f0f0";
-                        ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-                        ctx.fillStyle = "#999";
-                        ctx.font = "24px Arial";
-                        ctx.textAlign = "center";
-                        ctx.fillText("テスト画像が見つかりません", canvasRef.current.width / 2, canvasRef.current.height / 2);
-                    }
-
-                    updateCanvasSize(800, 600);
+                    canvasRef.current.width = totalWidth;
+                    canvasRef.current.height = totalHeight;
                 }
+                
+                if (backgroundCanvasRef.current) {
+                    backgroundCanvasRef.current.width = totalWidth;
+                    backgroundCanvasRef.current.height = totalHeight;
+                }
+                
+                if (patternCanvasRef.current) {
+                    patternCanvasRef.current.width = totalWidth;
+                    patternCanvasRef.current.height = totalHeight;
+                    
+                    // パターンキャンバスを描画
+                    drawPatternCanvas(patternCanvasRef.current, width, height);
+                }
+
+                // キャンバスの位置とスケールを同期
+                syncCanvasPositions();
+
+                // エラーメッセージを上レイヤーに表示
+                const ctx = canvasRef.current?.getContext('2d');
+                if (ctx) {
+                    ctx.fillStyle = "rgba(240, 240, 240, 0.7)";
+                    ctx.fillRect(CANVAS_MARGIN, CANVAS_MARGIN, width, height);
+                    ctx.fillStyle = "#999";
+                    ctx.font = "24px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("テスト画像が見つかりません", width / 2 + CANVAS_MARGIN, height / 2 + CANVAS_MARGIN);
+                }
+
+                updateCanvasSize(width, height);
             };
 
             // 最初のパスを試す
@@ -115,7 +219,7 @@ export const useCanvas = () => {
         };
 
         loadImage();
-    }, [drawCanvas, updateCanvasSize]);
+    }, [drawCanvas, updateCanvasSize, drawPatternCanvas, syncCanvasPositions]);
 
     // 描画更新のアニメーションフレーム - 最適化バージョン
     useEffect(() => {
@@ -127,8 +231,14 @@ export const useCanvas = () => {
 
             // 新しいフレームで描画
             requestAnimationRef.current = requestAnimationFrame(() => {
+                // パターンキャンバスの再描画（消えないように）
+                if (patternCanvasRef.current) {
+                    drawPatternCanvas(patternCanvasRef.current, canvasWidth, canvasHeight);
+                }
+                
                 drawCanvas();
-                updateCanvasPosition();
+                // キャンバス位置を同期
+                syncCanvasPositions();
                 updateCursorStyle();
                 updateStatusMessage();
                 setPendingDraw(false);
@@ -140,7 +250,22 @@ export const useCanvas = () => {
                 cancelAnimationFrame(requestAnimationRef.current);
             }
         };
-    }, [pendingDraw, isImageLoaded, drawCanvas, updateCanvasPosition, updateCursorStyle, updateStatusMessage]);
+    }, [
+        pendingDraw, 
+        isImageLoaded, 
+        drawCanvas, 
+        syncCanvasPositions, 
+        updateCursorStyle, 
+        updateStatusMessage, 
+        drawPatternCanvas,
+        canvasWidth,
+        canvasHeight
+    ]);
+
+    // スケールやオフセットが変更されたときに位置を同期
+    useEffect(() => {
+        syncCanvasPositions();
+    }, [syncCanvasPositions, state.view.scale, state.view.offsetX, state.view.offsetY]);
 
     // 状態変更時に描画をリクエスト - 依存関係を最適化
     useEffect(() => {
@@ -165,7 +290,7 @@ export const useCanvas = () => {
         data.annotation.length
     ]);
 
-    // マウスイベント関連のフック - 型アサーションを削除
+    // マウスイベント関連のフック - マージンを考慮
     const {
         handleMouseDown,
         handleMouseMove,
@@ -197,7 +322,7 @@ export const useCanvas = () => {
         data.annotation
     );
 
-    // タッチイベント関連のフック - 型アサーションを削除
+    // タッチイベント関連のフック - マージンを考慮
     const {
         handleTouchStart,
         handleTouchMove,
@@ -234,6 +359,7 @@ export const useCanvas = () => {
         if (!canvas) return;
 
         const handleForceRedraw = () => {
+            // パターンキャンバスを含めて全て再描画
             requestDraw();
         };
 
@@ -264,6 +390,8 @@ export const useCanvas = () => {
 
     return {
         canvasRef,
+        backgroundCanvasRef,
+        patternCanvasRef,
         containerRef,
         handleMouseDown,
         handleMouseMove,
@@ -275,6 +403,8 @@ export const useCanvas = () => {
         handleTouchEnd,
         handleTouchCancel,
         statusMessage,
-        isImageLoaded
+        isImageLoaded,
+        canvasWidth,
+        canvasHeight
     };
 };

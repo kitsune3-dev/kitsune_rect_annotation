@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { colorMap, borderColorMap } from '../../utils/colorConstants';
 import { AnnotationData } from '../../types/types';
+import { drawText } from '../../utils/drawingUtils';
 
 // AppStateの型をインポートせずに必要な構造を定義
 interface AppState {
@@ -29,68 +30,57 @@ interface AppState {
 
 export const useCanvasDrawing = (
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  backgroundCanvasRef: React.RefObject<HTMLCanvasElement | null>,
   imageRef: React.RefObject<HTMLImageElement | null>,
   state: AppState,
-  data: AnnotationData
+  data: AnnotationData,
+  margin: number = 0
 ) => {
-  // キャンバスクリア
+  // キャンバスクリア - 複数キャンバス対応
   const clearCanvas = useCallback(() => {
+    // 上レイヤー（矩形など）をクリア
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, [canvasRef]);
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
 
-  // ラベル表示のためのヘルパー関数
-  const drawLabelWithBackground = useCallback((
-    ctx: CanvasRenderingContext2D, 
-    text: string, 
-    x: number, 
-    y: number,
-    padding = 3
-  ) => {
-    // テキストの大きさを計算
-    const metrics = ctx.measureText(text);
-    const textWidth = metrics.width;
-    const textHeight = 12; // フォントサイズに合わせて調整
-
-    // 背景の描画（黒色の半透明背景）
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(
-      x, 
-      y - textHeight, 
-      textWidth + padding * 2, 
-      textHeight + padding * 2
-    );
+    // 中レイヤー（画像）をクリア
+    const bgCanvas = backgroundCanvasRef.current;
+    if (bgCanvas) {
+      const bgCtx = bgCanvas.getContext('2d');
+      if (bgCtx) bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    }
     
-    // テキストの描画（白色）
-    ctx.fillStyle = 'white';
-    ctx.fillText(text, x + padding, y + padding);
-  }, []);
+    // 下レイヤー（パターン）はクリアしない - パターンは常に表示されるべき
+  }, [canvasRef, backgroundCanvasRef]);
 
   // キャンバス描画メイン関数
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
+    const bgCanvas = backgroundCanvasRef.current;
     const image = imageRef.current;
     
-    if (!canvas || !image) return;
+    if (!canvas || !bgCanvas || !image) return;
     
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const bgCtx = bgCanvas.getContext('2d');
+    if (!ctx || !bgCtx) return;
 
-    // キャンバスをクリア
+    // 上レイヤーと中レイヤーだけをクリア
     clearCanvas();
     
-    // スケールとオフセットを適用
-    ctx.save();
-    ctx.translate(state.view.offsetX, state.view.offsetY);
-    ctx.scale(state.view.scale, state.view.scale);
+    // 中レイヤー（画像表示用）の描画
+    bgCtx.save();
+    // 背景を透明に
+    bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+    // 画像のみ描画（マージンを考慮した位置に）
+    bgCtx.drawImage(image, margin, margin);
+    bgCtx.restore();
     
-    // 画像描画
-    ctx.drawImage(image, 0, 0);
+    // 上レイヤー（矩形などの描画用）
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // 既存の矩形を描画
     data.annotation.forEach((anno, index) => {
@@ -99,11 +89,12 @@ export const useCanvasDrawing = (
       const isHovered = state.selection.hoveredAnnotationIndex === index;
       const isFlashing = state.mode.flashingIndices.includes(index);
       
+      // マージンを追加した座標に描画
       ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.lineTo(x3, y3);
-      ctx.lineTo(x4, y4);
+      ctx.moveTo(x1 + margin, y1 + margin);
+      ctx.lineTo(x2 + margin, y2 + margin);
+      ctx.lineTo(x3 + margin, y3 + margin);
+      ctx.lineTo(x4 + margin, y4 + margin);
       ctx.closePath();
       
       // 塗りつぶし
@@ -126,10 +117,17 @@ export const useCanvasDrawing = (
       // フォント設定
       ctx.font = '12px Arial';
       
-      // IDとラベル名を黒背景白文字で表示
+      // IDとラベル名をテキスト描画（マージン込み）
       const labelName = data.labels[anno.label_id.toString()];
       const labelText = `${anno.id}: ${labelName}`;
-      drawLabelWithBackground(ctx, labelText, x1 + 5, y1 + 12);
+      
+      // drawTextを使用する場合
+      drawText(ctx, labelText, x1 + margin + 5, y1 + margin + 12, {
+        withBackground: true,
+        bgFillStyle: 'rgba(0, 0, 0, 0.7)',
+        textFillStyle: 'white',
+        font: '12px Arial'
+      });
     });
     
     // 現在の選択範囲を描画
@@ -142,27 +140,31 @@ export const useCanvasDrawing = (
       const height = Math.abs(currentY - startY);
       
       ctx.fillStyle = colorMap[state.selection.selectedLabelId];
-      ctx.fillRect(x, y, width, height);
+      ctx.fillRect(x + margin, y + margin, width, height);
       
       ctx.lineWidth = 2;
       ctx.strokeStyle = borderColorMap[state.selection.selectedLabelId];
-      ctx.strokeRect(x, y, width, height);
+      ctx.strokeRect(x + margin, y + margin, width, height);
       
       // 選択中の範囲にもラベル情報を表示
       if (width > 50 && height > 20) { // 一定以上のサイズの場合のみ表示
         const labelName = data.labels[state.selection.selectedLabelId.toString()];
         const labelText = `${labelName}`;
-        drawLabelWithBackground(ctx, labelText, x + 5, y + 12);
+        
+        drawText(ctx, labelText, x + margin + 5, y + margin + 12, {
+          withBackground: true,
+          bgFillStyle: 'rgba(0, 0, 0, 0.7)',
+          textFillStyle: 'white',
+          font: '12px Arial'
+        });
       }
     }
     
     ctx.restore();
   }, [
     canvasRef, 
+    backgroundCanvasRef,
     imageRef, 
-    state.view.scale, 
-    state.view.offsetX, 
-    state.view.offsetY, 
     state.selection.selecting, 
     state.selection.startX, 
     state.selection.startY, 
@@ -175,7 +177,7 @@ export const useCanvasDrawing = (
     data.annotation,
     data.labels,
     clearCanvas,
-    drawLabelWithBackground
+    margin
   ]);
 
   // カーソルスタイル更新
@@ -203,17 +205,32 @@ export const useCanvasDrawing = (
     state.mode.mode
   ]);
 
-  // キャンバス位置更新
+  // キャンバス位置更新 - 複数キャンバス対応
   const updateCanvasPosition = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    // すべてのキャンバスに同じスケールと位置を適用
+    const applyPositioning = (canvas: HTMLCanvasElement | null) => {
+      if (!canvas) return;
+      
+      // スケールと位置の設定
+      canvas.style.transform = `scale(${state.view.scale})`;
+      canvas.style.transformOrigin = '0 0';
+      canvas.style.left = `${state.view.offsetX}px`;
+      canvas.style.top = `${state.view.offsetY}px`;
+    };
     
-    // スケールに応じたサイズ設定
-    canvas.style.transform = `scale(${state.view.scale})`;
-    canvas.style.transformOrigin = '0 0';
-    canvas.style.left = `${state.view.offsetX}px`;
-    canvas.style.top = `${state.view.offsetY}px`;
-  }, [canvasRef, state.view.scale, state.view.offsetX, state.view.offsetY]);
+    // 各キャンバスに適用
+    applyPositioning(canvasRef.current);
+    applyPositioning(backgroundCanvasRef.current);
+    
+    // 直接patternCanvasRefにアクセス
+    const patternCanvas = document.querySelector('canvas[ref="patternCanvasRef"]') as HTMLCanvasElement;
+    if (patternCanvas) {
+      applyPositioning(patternCanvas);
+    } else {
+      // RefオブジェクトのpatternCanvasRefを直接使用
+      applyPositioning(document.getElementById('pattern-canvas') as HTMLCanvasElement);
+    }
+  }, [canvasRef, backgroundCanvasRef, state.view.scale, state.view.offsetX, state.view.offsetY]);
 
   return {
     drawCanvas,

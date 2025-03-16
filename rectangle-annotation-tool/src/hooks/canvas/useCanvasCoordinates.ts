@@ -4,14 +4,17 @@ import { useCallback } from 'react';
 interface AppState {
   view: {
     scale: number;
+    offsetX: number;
+    offsetY: number;
   };
 }
 
 export const useCanvasCoordinates = (
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  state: AppState
+  state: AppState,
+  margin: number = 0
 ) => {
-  // 座標変換: クライアント座標 → キャンバス座標 - 改善版
+  // 座標変換: クライアント座標 → キャンバス座標（マージン込み）
   const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
     if (!canvasRef.current) return { x: 0, y: 0 };
 
@@ -21,12 +24,13 @@ export const useCanvasCoordinates = (
     const relativeX = clientX - rect.left;
     const relativeY = clientY - rect.top;
 
-    // スケールのみを考慮して元の座標に変換
-    const x = relativeX / state.view.scale;
-    const y = relativeY / state.view.scale;
+    // スケールとオフセットを考慮して元の座標に変換
+    // マージンを引くことで、画像の実際の座標に変換
+    const x = relativeX / state.view.scale - margin;
+    const y = relativeY / state.view.scale - margin;
 
     return { x, y };
-  }, [canvasRef, state.view.scale]);
+  }, [canvasRef, state.view.scale, margin]);
 
   // 点が矩形の中にあるかチェック
   const isPointInRectangle = useCallback((x: number, y: number, polygon: number[]) => {
