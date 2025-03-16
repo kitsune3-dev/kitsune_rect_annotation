@@ -1,14 +1,12 @@
 import React from 'react';
 import { AnnotationProvider } from './contexts/AnnotationContext';
 import { useCanvas } from './hooks/canvas/useCanvas';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import ResponsiveSidebar from './components/ResponsiveSidebar';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import ZoomControls from './components/ZoomControls';
 
 const AppContent: React.FC = () => {
   const { statusMessage } = useCanvas();
-  useKeyboardShortcuts();
 
   return (
     <div className="flex flex-col md:flex-row h-screen">

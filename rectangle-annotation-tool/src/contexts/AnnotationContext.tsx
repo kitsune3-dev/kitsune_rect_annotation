@@ -185,7 +185,6 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
 // アノテーション選択トグル
 const toggleAnnotationSelection = useCallback((index: number) => {
-    console.log(`矩形選択トグル: インデックス ${index}`);
     
     setState(prev => {
       const selectedIndex = prev.selectedAnnotations.indexOf(index);
@@ -194,12 +193,10 @@ const toggleAnnotationSelection = useCallback((index: number) => {
       if (selectedIndex === -1) {
         // 未選択の場合は追加
         newSelectedAnnotations = [...prev.selectedAnnotations, index];
-        console.log(`矩形 ${index} を選択に追加`);
       } else {
         // 既に選択されている場合は削除
         newSelectedAnnotations = [...prev.selectedAnnotations];
         newSelectedAnnotations.splice(selectedIndex, 1);
-        console.log(`矩形 ${index} を選択から削除`);
       }
       
       return {
@@ -297,11 +294,9 @@ const flashUnselectedRectangles = useCallback(() => {
     }
     
     if (unselectedIndices.length === 0) {
-      console.log("すべての矩形が選択済みです");
       return;
     }
     
-    console.log(`未選択の矩形: ${unselectedIndices.length}個 - インデックス:`, unselectedIndices);
     
     // 点滅回数カウンタ
     let count = 0;
@@ -315,7 +310,6 @@ const flashUnselectedRectangles = useCallback(() => {
         flashingIndices: isHighlight ? unselectedIndices : []
       }));
       
-      console.log(`Flash ${count}: ${isHighlight ? '強調表示' : '通常表示'}`);
       
       if (count < 6) { // 3回点滅（ON/OFF x 3）
         flashTimeoutRef.current = window.setTimeout(flash, 200) as unknown as null;
@@ -326,7 +320,6 @@ const flashUnselectedRectangles = useCallback(() => {
           flashingIndices: []
         }));
         flashTimeoutRef.current = null;
-        console.log("点滅終了");
       }
     };
     
@@ -438,7 +431,6 @@ const flashUnselectedRectangles = useCallback(() => {
 const zoomIn = useCallback(() => {
     setState(prev => {
       const newScale = prev.scale * 1.1;
-      console.log('Zoom in:', newScale);
       return {
         ...prev,
         scale: newScale
@@ -450,7 +442,6 @@ const zoomIn = useCallback(() => {
   const zoomOut = useCallback(() => {
     setState(prev => {
       const newScale = Math.max(0.1, prev.scale / 1.1); // 最小スケール制限
-      console.log('Zoom out:', newScale);
       return {
         ...prev,
         scale: newScale
