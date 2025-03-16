@@ -3,115 +3,70 @@
  */
 
 /**
- * 縁取り付きテキストを描画する
+ * テキストを描画するための統合関数
+ * (縁取りとオプションの背景付き)
+ * 
  * @param ctx キャンバスコンテキスト
  * @param text 描画するテキスト
  * @param x X座標
  * @param y Y座標
- * @param fillStyle 文字の塗りつぶし色
- * @param strokeStyle 縁取りの色
- * @param strokeWidth 縁取りの太さ
- * @param font フォント設定（オプション）
- * @param textAlign テキスト揃え位置（オプション）
- * @param textBaseline テキストベースライン（オプション）
+ * @param options テキストと背景の描画オプション
  */
-export const drawTextWithStroke = (
-    ctx: CanvasRenderingContext2D, 
-    text: string, 
-    x: number, 
-    y: number, 
-    fillStyle: string = "white", 
-    strokeStyle: string = "black",
-    strokeWidth: number = 3,
+export const drawText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  options: {
+    // テキスト関連の設定
+    textFillStyle?: string,
+    textStrokeStyle?: string,
+    textStrokeWidth?: number,
     font?: string,
     textAlign?: CanvasTextAlign,
-    textBaseline?: CanvasTextBaseline
-  ) => {
-    // 現在の設定を保存
-    ctx.save();
+    textBaseline?: CanvasTextBaseline,
     
-    // フォント設定
-    if (font) ctx.font = font;
+    // 背景関連の設定
+    withBackground?: boolean,
+    bgFillStyle?: string,
+    bgStrokeStyle?: string,
+    bgLineWidth?: number,
+    bgRadius?: number,
+    padding?: { x: number, y: number }
+  } = {}
+) => {
+  // デフォルト設定
+  const defaultOptions = {
+    // テキスト関連のデフォルト
+    textFillStyle: "white",
+    textStrokeStyle: "black",
+    textStrokeWidth: 2,
+    font: "12px Arial",
+    textAlign: "left" as CanvasTextAlign,
+    textBaseline: "top" as CanvasTextBaseline,
     
-    // テキスト配置設定
-    if (textAlign) ctx.textAlign = textAlign;
-    if (textBaseline) ctx.textBaseline = textBaseline;
-    
-    // テキストの縁取り
-    ctx.lineWidth = strokeWidth;
-    ctx.strokeStyle = strokeStyle;
-    ctx.lineJoin = 'round'; // 角を丸くする
-    ctx.miterLimit = 2;
-    ctx.strokeText(text, x, y);
-    
-    // テキスト本体
-    ctx.fillStyle = fillStyle;
-    ctx.fillText(text, x, y);
-    
-    // 設定を元に戻す
-    ctx.restore();
+    // 背景関連のデフォルト
+    withBackground: false,
+    bgFillStyle: "rgba(0, 0, 0, 0.7)",
+    bgStrokeStyle: undefined,
+    bgLineWidth: 0,
+    bgRadius: 0,
+    padding: { x: 4, y: 2 }
   };
   
-  /**
-   * 背景付きテキストを描画する
-   * @param ctx キャンバスコンテキスト
-   * @param text 描画するテキスト
-   * @param x X座標
-   * @param y Y座標
-   * @param textOptions テキスト描画オプション
-   * @param bgOptions 背景描画オプション
-   */
-  export const drawTextWithBackground = (
-    ctx: CanvasRenderingContext2D,
-    text: string,
-    x: number,
-    y: number,
-    textOptions: {
-      fillStyle?: string,
-      strokeStyle?: string,
-      strokeWidth?: number,
-      font?: string,
-      textAlign?: CanvasTextAlign,
-      textBaseline?: CanvasTextBaseline,
-      padding?: { x: number, y: number }
-    } = {},
-    bgOptions: {
-      fillStyle?: string,
-      strokeStyle?: string,
-      lineWidth?: number,
-      radius?: number
-    } = {}
-  ) => {
-    // デフォルト設定
-    const textSettings = {
-      fillStyle: "white",
-      strokeStyle: "black",
-      strokeWidth: 2,
-      font: "12px Arial",
-      textAlign: "left" as CanvasTextAlign,
-      textBaseline: "top" as CanvasTextBaseline,
-      padding: { x: 4, y: 2 }
-    };
-    
-    const bgSettings = {
-      fillStyle: "rgba(0, 0, 0, 0.7)",
-      strokeStyle: undefined,
-      lineWidth: 0,
-      radius: 0
-    };
-    
-    // ユーザー設定で上書き
-    Object.assign(textSettings, textOptions);
-    Object.assign(bgSettings, bgOptions);
-    
-    // 現在の設定を保存
-    ctx.save();
-    
-    // フォント設定
-    ctx.font = textSettings.font;
-    ctx.textAlign = textSettings.textAlign;
-    ctx.textBaseline = textSettings.textBaseline;
-    
+  // デフォルト設定をユーザー指定の設定で上書き
+  const settings = { ...defaultOptions, ...options };
+  
+  // 現在の設定を保存
+  ctx.save();
+  
+  // フォント設定を適用
+  ctx.font = settings.font;
+  ctx.textAlign = settings.textAlign;
+  ctx.textBaseline = settings.textBaseline;
+  
+  // 背景付きの場合
+  if (settings.withBackground) {
     // テキストの幅を測定
     const metrics = ctx.measureText(text);
     const textWidth = metrics.width;
@@ -119,30 +74,30 @@ export const drawTextWithStroke = (
     
     // テキスト位置の調整（テキスト配置に基づく）
     let rectX = x;
-    if (textSettings.textAlign === 'center') {
+    if (settings.textAlign === 'center') {
       rectX = x - textWidth / 2;
-    } else if (textSettings.textAlign === 'right') {
+    } else if (settings.textAlign === 'right') {
       rectX = x - textWidth;
     }
     
     let rectY = y;
-    if (textSettings.textBaseline === 'middle') {
+    if (settings.textBaseline === 'middle') {
       rectY = y - textHeight / 2;
-    } else if (textSettings.textBaseline === 'bottom' || textSettings.textBaseline === 'alphabetic') {
+    } else if (settings.textBaseline === 'bottom' || settings.textBaseline === 'alphabetic') {
       rectY = y - textHeight;
     }
     
     // 背景描画
-    const bgX = rectX - textSettings.padding.x;
-    const bgY = rectY - textSettings.padding.y;
-    const bgWidth = textWidth + (textSettings.padding.x * 2);
-    const bgHeight = textHeight + (textSettings.padding.y * 2);
+    const bgX = rectX - settings.padding.x;
+    const bgY = rectY - settings.padding.y;
+    const bgWidth = textWidth + (settings.padding.x * 2);
+    const bgHeight = textHeight + (settings.padding.y * 2);
     
-    ctx.fillStyle = bgSettings.fillStyle;
+    ctx.fillStyle = settings.bgFillStyle;
     
-    if (bgSettings.radius > 0) {
+    if (settings.bgRadius > 0) {
       // 角丸四角形
-      const radius = Math.min(bgSettings.radius, bgWidth / 2, bgHeight / 2);
+      const radius = Math.min(settings.bgRadius, bgWidth / 2, bgHeight / 2);
       
       ctx.beginPath();
       ctx.moveTo(bgX + radius, bgY);
@@ -157,33 +112,36 @@ export const drawTextWithStroke = (
       ctx.closePath();
       ctx.fill();
       
-      if (bgSettings.strokeStyle) {
-        ctx.strokeStyle = bgSettings.strokeStyle;
-        ctx.lineWidth = bgSettings.lineWidth;
+      if (settings.bgStrokeStyle) {
+        ctx.strokeStyle = settings.bgStrokeStyle;
+        ctx.lineWidth = settings.bgLineWidth;
         ctx.stroke();
       }
     } else {
       // 通常の四角形
       ctx.fillRect(bgX, bgY, bgWidth, bgHeight);
       
-      if (bgSettings.strokeStyle) {
-        ctx.strokeStyle = bgSettings.strokeStyle;
-        ctx.lineWidth = bgSettings.lineWidth;
+      if (settings.bgStrokeStyle) {
+        ctx.strokeStyle = settings.bgStrokeStyle;
+        ctx.lineWidth = settings.bgLineWidth;
         ctx.strokeRect(bgX, bgY, bgWidth, bgHeight);
       }
     }
-    
-    // テキスト描画（縁取り付き）
-    drawTextWithStroke(
-      ctx,
-      text,
-      x,
-      y,
-      textSettings.fillStyle,
-      textSettings.strokeStyle,
-      textSettings.strokeWidth
-    );
-    
-    // 設定を元に戻す
-    ctx.restore();
-  };
+  }
+  
+  // テキストの縁取り
+  if (settings.textStrokeStyle && settings.textStrokeWidth > 0) {
+    ctx.lineWidth = settings.textStrokeWidth;
+    ctx.strokeStyle = settings.textStrokeStyle;
+    ctx.lineJoin = 'round'; // 角を丸くする
+    ctx.miterLimit = 2;
+    ctx.strokeText(text, x, y);
+  }
+  
+  // テキスト本体
+  ctx.fillStyle = settings.textFillStyle;
+  ctx.fillText(text, x, y);
+  
+  // 設定を元に戻す
+  ctx.restore();
+};

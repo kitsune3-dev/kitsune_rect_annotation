@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { AppState, AnnotationData } from '../../types/types';
 import { colorMap, borderColorMap } from '../../utils/colorConstants';
-import { drawTextWithStroke, drawTextWithBackground } from '../../utils/drawingUtils';
+import { drawText } from '../../utils/drawingUtils';
 
 export const useCanvasDrawing = (
     canvasRef: React.RefObject<HTMLCanvasElement | null>,
@@ -179,18 +179,14 @@ export const useCanvasDrawing = (
         ctx.stroke();
         
         // ID番号（縁取り付き）
-        drawTextWithStroke(
-            ctx, 
-            id.toString(), 
-            centerX, 
-            centerY, 
-            "black",  // 文字色
-            "white",  // 縁取り色
-            1.5,      // 縁取りの太さ
-            "bold 14px Arial",
-            "center",
-            "middle"
-        );
+        drawText(ctx, id.toString(), centerX, centerY, {
+            textFillStyle: "black",
+            textStrokeStyle: "white",
+            textStrokeWidth: 1.5,
+            font: "bold 14px Arial",
+            textAlign: "center",
+            textBaseline: "middle"
+        });
     }, []);
 
     // アノテーションラベルを描画
@@ -208,46 +204,32 @@ export const useCanvasDrawing = (
         // 矩形が十分な大きさを持つ場合の表示方法
         if (rectWidth > 100 && rectHeight > 30) {
             // 矩形内にラベルを表示
-            drawTextWithBackground(
-                ctx,
-                labelText,
-                x1 + 5,
-                y1 + 5,
-                {
-                    fillStyle: "white",
-                    strokeStyle: "black",
-                    strokeWidth: 2,
-                    font: "bold 12px Arial",
-                    textAlign: "left",
-                    textBaseline: "top",
-                    padding: { x: 5, y: 3 }
-                },
-                {
-                    fillStyle: bgColor,
-                    radius: 3  // 角丸の半径
-                }
-            );
+            drawText(ctx, labelText, x1 + 5, y1 + 5, {
+                textFillStyle: "white",
+                textStrokeStyle: "black",
+                textStrokeWidth: 2,
+                font: "bold 12px Arial",
+                textAlign: "left",
+                textBaseline: "top",
+                withBackground: true,
+                bgFillStyle: bgColor,
+                bgRadius: 3,
+                padding: { x: 5, y: 3 }
+            });
         } else {
             // 矩形が小さい場合は、矩形の上に表示
-            drawTextWithBackground(
-                ctx,
-                labelText,
-                x1 + (rectWidth / 2),
-                y1 - 5,
-                {
-                    fillStyle: "white",
-                    strokeStyle: "black",
-                    strokeWidth: 2,
-                    font: "bold 12px Arial",
-                    textAlign: "center",
-                    textBaseline: "bottom",
-                    padding: { x: 5, y: 3 }
-                },
-                {
-                    fillStyle: bgColor,
-                    radius: 3  // 角丸の半径
-                }
-            );
+            drawText(ctx, labelText, x1 + (rectWidth / 2), y1 - 5, {
+                textFillStyle: "white",
+                textStrokeStyle: "black",
+                textStrokeWidth: 2,
+                font: "bold 12px Arial",
+                textAlign: "center",
+                textBaseline: "bottom",
+                withBackground: true,
+                bgFillStyle: bgColor,
+                bgRadius: 3,
+                padding: { x: 5, y: 3 }
+            });
         }
     }, [data.labels]);
 
