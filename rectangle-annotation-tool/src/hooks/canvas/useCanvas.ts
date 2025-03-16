@@ -30,27 +30,27 @@ export const useCanvas = () => {
         updateCanvasSize,
         zoomIn,
         zoomOut,
-        updateCanvasScale // 新しい関数を追加
+        updateCanvasScale
     } = useAnnotation();
 
     // 座標変換関連のフック
     const {
         getCanvasCoordinates,
         findRectangleAtPosition
-    } = useCanvasCoordinates(canvasRef, state as any);
+    } = useCanvasCoordinates(canvasRef, state);
 
     // 描画関連のフック
     const {
         drawCanvas,
         updateCanvasPosition,
         updateCursorStyle
-    } = useCanvasDrawing(canvasRef, imageRef, state as any, data);
+    } = useCanvasDrawing(canvasRef, imageRef, state, data);
 
     // ステータスメッセージ関連のフック
     const {
         statusMessage,
         updateStatusMessage
-    } = useCanvasStatus(state as any, data, isImageLoaded);
+    } = useCanvasStatus(state, data, isImageLoaded);
 
     // 描画の最適化: requestAnimationFrameを使用
     const [pendingDraw, setPendingDraw] = useState(false);
@@ -115,11 +115,9 @@ export const useCanvas = () => {
         };
 
         loadImage();
+    }, [drawCanvas, updateCanvasSize]);
 
-
-    }, []);
-
-    // 描画更新のアニメーションフレーム
+    // 描画更新のアニメーションフレーム - 最適化バージョン
     useEffect(() => {
         if (pendingDraw && isImageLoaded) {
             // 既存のリクエストをキャンセル
@@ -144,14 +142,30 @@ export const useCanvas = () => {
         };
     }, [pendingDraw, isImageLoaded, drawCanvas, updateCanvasPosition, updateCursorStyle, updateStatusMessage]);
 
-    // 状態変更時に描画をリクエスト
+    // 状態変更時に描画をリクエスト - 依存関係を最適化
     useEffect(() => {
         if (isImageLoaded) {
             requestDraw();
         }
-    }, [state, data.annotation, isImageLoaded, requestDraw]);
+    }, [
+        isImageLoaded, 
+        requestDraw,
+        // state内の変更を監視（全体ではなく必要な部分のみ）
+        state.selection.selecting,
+        state.selection.currentX,
+        state.selection.currentY,
+        state.selection.hoveredAnnotationIndex,
+        state.selection.selectedAnnotations,
+        state.view.scale,
+        state.view.offsetX,
+        state.view.offsetY,
+        state.mode.mode,
+        state.mode.flashingIndices,
+        // アノテーションデータの変更を監視
+        data.annotation.length
+    ]);
 
-    // マウスイベント関連のフック
+    // マウスイベント関連のフック - 型アサーションを削除
     const {
         handleMouseDown,
         handleMouseMove,
@@ -160,7 +174,7 @@ export const useCanvas = () => {
         handleWheel
     } = useCanvasEvents(
         canvasRef,
-        state as any,
+        state,
         getCanvasCoordinates,
         findRectangleAtPosition,
         requestDraw,
@@ -183,7 +197,7 @@ export const useCanvas = () => {
         data.annotation
     );
 
-    // タッチイベント関連のフック
+    // タッチイベント関連のフック - 型アサーションを削除
     const {
         handleTouchStart,
         handleTouchMove,
@@ -192,7 +206,7 @@ export const useCanvas = () => {
     } = useCanvasTouch(
         canvasRef,
         containerRef,
-        state as any,
+        state,
         getCanvasCoordinates,
         findRectangleAtPosition,
         {
@@ -214,7 +228,7 @@ export const useCanvas = () => {
         requestDraw
     );
 
-    // キャンバス強制再描画リスナー
+    // キャンバス強制再描画リスナー - メモ化バージョン
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -232,6 +246,22 @@ export const useCanvas = () => {
         };
     }, [canvasRef, requestDraw]);
 
+    // リソース解放のためのクリーンアップ
+    useEffect(() => {
+        return () => {
+            // 画像参照をクリア
+            if (imageRef.current) {
+                imageRef.current = null;
+            }
+            
+            // アニメーションフレームをキャンセル
+            if (requestAnimationRef.current !== null) {
+                cancelAnimationFrame(requestAnimationRef.current);
+                requestAnimationRef.current = null;
+            }
+        };
+    }, []);
+
     return {
         canvasRef,
         containerRef,
@@ -240,7 +270,6 @@ export const useCanvas = () => {
         handleMouseUp,
         handleMouseOut,
         handleWheel,
-        // タッチイベントハンドラを追加
         handleTouchStart,
         handleTouchMove,
         handleTouchEnd,

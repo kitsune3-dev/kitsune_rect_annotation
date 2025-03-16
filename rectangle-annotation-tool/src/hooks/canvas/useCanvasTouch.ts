@@ -1,5 +1,20 @@
 import { useCallback, useState, RefObject } from 'react';
-import { AppState } from '../../types/types';
+import { Annotation } from '../../types/types';
+
+// 新しい状態構造に対応した型定義
+interface AppState {
+  selection: {
+    selecting: boolean;
+    selectedAnnotations: number[];
+  };
+  view: {
+    isDragging: boolean;
+    scale: number;
+  };
+  mode: {
+    mode: string;
+  };
+}
 
 // ピンチズームのための状態を追跡
 interface TouchState {
@@ -33,9 +48,9 @@ export const useCanvasTouch = (
   containerRef: RefObject<HTMLDivElement | null>,
   state: AppState,
   getCanvasCoordinates: (clientX: number, clientY: number) => { x: number; y: number },
-  findRectangleAtPosition: (x: number, y: number, annotations: any[]) => number,
+  findRectangleAtPosition: (x: number, y: number, annotations: Annotation[]) => number,
   handlers: TouchHandlers,
-  annotations: any[],
+  annotations: Annotation[],
   requestDraw: () => void
 ) => {
   // タッチ状態の初期化
@@ -55,7 +70,7 @@ export const useCanvasTouch = (
     return Math.sqrt(dx * dx + dy * dy);
   };
 
-  // タッチ開始イベントハンドラ
+  // タッチ開始イベントハンドラ - 改善版
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault(); // デフォルトのスクロールやズームを防止
 
@@ -65,9 +80,9 @@ export const useCanvasTouch = (
       const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
 
       // モードに応じた処理
-      switch (state.mode) {
+      switch (state.mode.mode) {
         case 'add':
-          if (!state.selecting) {
+          if (!state.selection.selecting) {
             handlers.startSelection(coords.x, coords.y);
           }
           break;
@@ -76,9 +91,9 @@ export const useCanvasTouch = (
           // タッチ位置のインデックスを取得
           const idx = findRectangleAtPosition(coords.x, coords.y, annotations);
           if (idx !== -1) {
-            if (state.mode === 'delete') {
+            if (state.mode.mode === 'delete') {
               handlers.toggleAnnotationSelection(idx);
-            } else if (state.mode === 'renumber') {
+            } else if (state.mode.mode === 'renumber') {
               handlers.renumberAnnotation(idx);
             }
           }
@@ -101,7 +116,7 @@ export const useCanvasTouch = (
       setTouchState({
         ...touchState,
         initialPinchDistance: distance,
-        initialScale: state.scale,
+        initialScale: state.view.scale,
         lastTouchCount: 2,
         // 2本指の中心座標を計算
         lastTouchX: (e.touches[0].clientX + e.touches[1].clientX) / 2,
@@ -109,9 +124,18 @@ export const useCanvasTouch = (
         isTouchActive: true
       });
     }
-  }, [state, touchState, handlers, getCanvasCoordinates, findRectangleAtPosition, annotations]);
+  }, [
+    state.mode.mode, 
+    state.selection.selecting, 
+    state.view.scale,
+    touchState, 
+    handlers, 
+    getCanvasCoordinates, 
+    findRectangleAtPosition, 
+    annotations
+  ]);
 
-  // タッチ移動イベントハンドラ
+  // タッチ移動イベントハンドラ - 改善版
   const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
 
@@ -121,7 +145,7 @@ export const useCanvasTouch = (
       // 単一タッチでの移動
       const touch = e.touches[0];
 
-      if (state.selecting) {
+      if (state.selection.selecting) {
         // 選択中の場合、選択範囲を更新
         const coords = getCanvasCoordinates(touch.clientX, touch.clientY);
         handlers.updateSelection(coords.x, coords.y);
@@ -152,24 +176,25 @@ export const useCanvasTouch = (
     }
   }, [
     touchState,
-    state.selecting,
+    state.selection.selecting,
     getCanvasCoordinates,
     handlers,
-    requestDraw
+    requestDraw,
+    calculateDistance
   ]);
 
-  // タッチ終了イベントハンドラ
+  // タッチ終了イベントハンドラ - 改善版
   const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
 
     // 残っているタッチの数に応じて処理
     if (e.touches.length === 0) {
       // すべてのタッチが終了
-      if (state.selecting) {
+      if (state.selection.selecting) {
         handlers.finishSelection();
       }
       
-      if (state.isDragging) {
+      if (state.view.isDragging) {
         handlers.endDrag();
       }
 
@@ -194,13 +219,13 @@ export const useCanvasTouch = (
         isTouchActive: true
       });
     }
-  }, [state, handlers]);
+  }, [state.selection.selecting, state.view.isDragging, handlers]);
 
-  // タッチキャンセルハンドラ
+  // タッチキャンセルハンドラ - 改善版
   const handleTouchCancel = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     e.preventDefault();
     // ドラッグを終了
-    if (state.isDragging) {
+    if (state.view.isDragging) {
       handlers.endDrag();
     }
 
@@ -213,7 +238,7 @@ export const useCanvasTouch = (
       lastTouchY: null,
       isTouchActive: false
     });
-  }, [state.isDragging, handlers]);
+  }, [state.view.isDragging, handlers]);
 
   return {
     handleTouchStart,

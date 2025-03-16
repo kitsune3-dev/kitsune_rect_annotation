@@ -34,8 +34,8 @@ const ModeSelector: React.FC = () => {
             className={classNames(
               'border rounded p-2 cursor-pointer transition-colors',
               {
-                'bg-blue-50 border-blue-500': state.mode === mode.id,
-                'bg-white border-gray-300 hover:bg-gray-50': state.mode !== mode.id
+                'bg-blue-50 border-blue-500': state.mode.mode === mode.id,
+                'bg-white border-gray-300 hover:bg-gray-50': state.mode.mode !== mode.id
               }
             )}
             onClick={() => setMode(mode.id)}

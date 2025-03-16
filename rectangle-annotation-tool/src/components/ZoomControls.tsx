@@ -56,7 +56,7 @@ const ZoomControls: React.FC = () => {
       
       {/* ズーム倍率表示 */}
       <div className="absolute bottom-5 left-5 bg-white bg-opacity-70 rounded px-2 py-1 text-sm">
-        {Math.round(state.scale * 100)}%
+        {Math.round(state.view.scale * 100)}%
       </div>
 
       {/* タッチ操作ヒント */}

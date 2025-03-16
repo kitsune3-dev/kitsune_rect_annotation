@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 const ResponsiveSidebar: React.FC<SidebarProps> = ({ statusMessage }) => {
-  const { undo, redo, saveData, historyIndex, history, state } = useAnnotation();
+  const { undo, redo, saveData, historyIndex, state } = useAnnotation();
   const [isOpen, setIsOpen] = useState(false);
 
   const toggleSidebar = () => {

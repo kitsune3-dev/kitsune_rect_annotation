@@ -1,267 +1,224 @@
 import { useCallback } from 'react';
-import { AppState, AnnotationData } from '../../types/types';
 import { colorMap, borderColorMap } from '../../utils/colorConstants';
-import { drawText } from '../../utils/drawingUtils';
+import { AnnotationData } from '../../types/types';
+
+// AppStateの型をインポートせずに必要な構造を定義
+interface AppState {
+  selection: {
+    selecting: boolean;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    hoveredAnnotationIndex: number;
+    selectedAnnotations: number[];
+    selectedLabelId: number;
+  };
+  view: {
+    scale: number;
+    offsetX: number;
+    offsetY: number;
+    isDragging: boolean;
+  };
+  mode: {
+    mode: string;
+    flashingIndices: number[];
+    commandKeyPressed: boolean;
+  };
+}
 
 export const useCanvasDrawing = (
-    canvasRef: React.RefObject<HTMLCanvasElement | null>,
-    imageRef: React.RefObject<HTMLImageElement | null>,
-    state: AppState,
-    data: AnnotationData
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  imageRef: React.RefObject<HTMLImageElement | null>,
+  state: AppState,
+  data: AnnotationData
 ) => {
-    // キャンバスの描画
-    const drawCanvas = useCallback(() => {
-        const canvas = canvasRef.current;
-        const ctx = canvas?.getContext('2d', { alpha: false }); // alpha:falseでパフォーマンス向上
+  // キャンバスクリア
+  const clearCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }, [canvasRef]);
 
-        if (!canvas || !ctx) {
-            return;
-        }
+  // ラベル表示のためのヘルパー関数
+  const drawLabelWithBackground = useCallback((
+    ctx: CanvasRenderingContext2D, 
+    text: string, 
+    x: number, 
+    y: number,
+    padding = 3
+  ) => {
+    // テキストの大きさを計算
+    const metrics = ctx.measureText(text);
+    const textWidth = metrics.width;
+    const textHeight = 12; // フォントサイズに合わせて調整
 
-        // キャンバスをクリア
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // 背景の描画（黒色の半透明背景）
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(
+      x, 
+      y - textHeight, 
+      textWidth + padding * 2, 
+      textHeight + padding * 2
+    );
+    
+    // テキストの描画（白色）
+    ctx.fillStyle = 'white';
+    ctx.fillText(text, x + padding, y + padding);
+  }, []);
 
-        // 画像の描画
-        if (imageRef.current && imageRef.current.complete) {
-            try {
-                // ctx の状態をリセット
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.globalAlpha = 1.0;
+  // キャンバス描画メイン関数
+  const drawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const image = imageRef.current;
+    
+    if (!canvas || !image) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-                // 画像全体がキャンバスに表示されるように描画
-                ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
-            } catch (err) {
-                console.error('Error drawing image:', err);
-            }
-        } else {
-            // プレースホルダー表示
-            ctx.fillStyle = "#f0f0f0";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#999";
-            ctx.font = "24px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("画像が読み込まれていません", canvas.width / 2, canvas.height / 2);
-        }
+    // キャンバスをクリア
+    clearCanvas();
+    
+    // スケールとオフセットを適用
+    ctx.save();
+    ctx.translate(state.view.offsetX, state.view.offsetY);
+    ctx.scale(state.view.scale, state.view.scale);
+    
+    // 画像描画
+    ctx.drawImage(image, 0, 0);
+    
+    // 既存の矩形を描画
+    data.annotation.forEach((anno, index) => {
+      const [x1, y1, x2, y2, x3, y3, x4, y4] = anno.polygon;
+      const isSelected = state.selection.selectedAnnotations.includes(index);
+      const isHovered = state.selection.hoveredAnnotationIndex === index;
+      const isFlashing = state.mode.flashingIndices.includes(index);
+      
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(x3, y3);
+      ctx.lineTo(x4, y4);
+      ctx.closePath();
+      
+      // 塗りつぶし
+      ctx.fillStyle = isFlashing 
+        ? 'rgba(255, 255, 255, 0.8)' // 点滅中は白色
+        : colorMap[anno.label_id];
+      ctx.fill();
+      
+      // 枠線
+      ctx.lineWidth = isSelected ? 3 : isHovered ? 2 : 1;
+      ctx.strokeStyle = isFlashing 
+        ? 'rgba(0, 0, 0, 0.8)' // 点滅中は黒色
+        : isSelected 
+          ? 'rgba(0, 0, 255, 0.8)' // 選択中は青色
+          : isHovered 
+            ? 'rgba(255, 165, 0, 0.8)' // ホバー中はオレンジ
+            : borderColorMap[anno.label_id];
+      ctx.stroke();
+      
+      // フォント設定
+      ctx.font = '12px Arial';
+      
+      // IDとラベル名を黒背景白文字で表示
+      const labelName = data.labels[anno.label_id.toString()];
+      const labelText = `${anno.id}: ${labelName}`;
+      drawLabelWithBackground(ctx, labelText, x1 + 5, y1 + 12);
+    });
+    
+    // 現在の選択範囲を描画
+    if (state.selection.selecting) {
+      const { startX, startY, currentX, currentY } = state.selection;
+      
+      const x = Math.min(startX, currentX);
+      const y = Math.min(startY, currentY);
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+      
+      ctx.fillStyle = colorMap[state.selection.selectedLabelId];
+      ctx.fillRect(x, y, width, height);
+      
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = borderColorMap[state.selection.selectedLabelId];
+      ctx.strokeRect(x, y, width, height);
+      
+      // 選択中の範囲にもラベル情報を表示
+      if (width > 50 && height > 20) { // 一定以上のサイズの場合のみ表示
+        const labelName = data.labels[state.selection.selectedLabelId.toString()];
+        const labelText = `${labelName}`;
+        drawLabelWithBackground(ctx, labelText, x + 5, y + 12);
+      }
+    }
+    
+    ctx.restore();
+  }, [
+    canvasRef, 
+    imageRef, 
+    state.view.scale, 
+    state.view.offsetX, 
+    state.view.offsetY, 
+    state.selection.selecting, 
+    state.selection.startX, 
+    state.selection.startY, 
+    state.selection.currentX, 
+    state.selection.currentY, 
+    state.selection.hoveredAnnotationIndex,
+    state.selection.selectedAnnotations,
+    state.selection.selectedLabelId,
+    state.mode.flashingIndices,
+    data.annotation,
+    data.labels,
+    clearCanvas,
+    drawLabelWithBackground
+  ]);
 
-        // 既存のアノテーションを描画
-        drawAnnotations(ctx);
+  // カーソルスタイル更新
+  const updateCursorStyle = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    if (state.mode.commandKeyPressed || state.view.isDragging) {
+      canvas.style.cursor = 'grab';
+      if (state.view.isDragging) {
+        canvas.style.cursor = 'grabbing';
+      }
+    } else if (state.selection.selecting) {
+      canvas.style.cursor = 'crosshair';
+    } else if (state.mode.mode === 'add') {
+      canvas.style.cursor = 'crosshair';
+    } else {
+      canvas.style.cursor = 'default';
+    }
+  }, [
+    canvasRef, 
+    state.mode.commandKeyPressed, 
+    state.view.isDragging, 
+    state.selection.selecting, 
+    state.mode.mode
+  ]);
 
-        // 選択中の矩形を描画
-        if (state.mode === 'add' && state.selecting) {
-            drawSelectionRectangle(ctx);
-        }
-    }, [canvasRef, imageRef, state, data]);
+  // キャンバス位置更新
+  const updateCanvasPosition = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    // スケールに応じたサイズ設定
+    canvas.style.transform = `scale(${state.view.scale})`;
+    canvas.style.transformOrigin = '0 0';
+    canvas.style.left = `${state.view.offsetX}px`;
+    canvas.style.top = `${state.view.offsetY}px`;
+  }, [canvasRef, state.view.scale, state.view.offsetX, state.view.offsetY]);
 
-    // アノテーションの描画
-    const drawAnnotations = useCallback((ctx: CanvasRenderingContext2D) => {
-        data.annotation.forEach((anno, index) => {
-            const [x1, y1, x2, y2, x3, y3, x4, y4] = anno.polygon;
-
-            const isSelected = state.selectedAnnotations.includes(index);
-            const isHovered = state.hoveredAnnotationIndex === index;
-            const isFlashing = state.flashingIndices?.includes(index);
-
-            // 通常の色/ホバー時の色/選択時の色/フラッシュ時の色を決定
-            let fillColor = colorMap[anno.label_id];
-            let strokeColor = borderColorMap[anno.label_id];
-            let lineWidth = 2;
-
-            if (isFlashing) {
-                // フラッシュ時はオレンジ色でハイライト
-                fillColor = "rgba(255, 165, 0, 0.5)";
-                strokeColor = "rgb(255, 165, 0)";
-                lineWidth = 4;
-            } else if (isHovered && (state.mode === 'delete' || state.mode === 'renumber')) {
-                // ホバー時は少し明るく
-                fillColor = colorMap[anno.label_id].replace('0.3', '0.5');
-                lineWidth = 3;
-            }
-
-            if (isSelected) {
-                // 選択時は強調表示を強化
-                if (state.mode === 'delete') {
-                    // 削除モードでは赤く強調
-                    fillColor = "rgba(255, 0, 0, 0.4)"; // より明確な赤色の半透明
-                    strokeColor = "rgb(255, 0, 0)";      // 赤色の枠線
-                    lineWidth = 4;                       // 太い線幅
-                } else if (state.mode === 'renumber') {
-                    // 番号振り直しモードでは緑で強調
-                    fillColor = "rgba(0, 128, 0, 0.3)";  // 緑色の半透明
-                    strokeColor = "rgb(0, 128, 0)";     // 緑色の枠線
-                    lineWidth = 3;
-                }
-            }
-
-            ctx.fillStyle = fillColor;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = lineWidth;
-
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.lineTo(x3, y3);
-            ctx.lineTo(x4, y4);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // 削除モードで選択された矩形には✕印を表示
-            if (state.mode === 'delete' && isSelected) {
-                drawDeleteMark(ctx, x1, x2, x3, y1, y2, y3);
-            }
-
-            // 番号振り直しモードで選択済みの場合、IDを表示
-            if (state.mode === 'renumber' && isSelected) {
-                drawRenumberMark(ctx, x1, x3, y1, y3, anno.id);
-            }
-
-            // すべての矩形にラベル情報を追加
-            drawAnnotationLabel(ctx, anno, x1, x2, y1, y3);
-        });
-    }, [data.annotation, state, colorMap, borderColorMap]);
-
-    // 選択中の矩形を描画
-    const drawSelectionRectangle = useCallback((ctx: CanvasRenderingContext2D) => {
-        if (!state) return;
-        
-        const x1 = Math.min(state.startX, state.currentX);
-        const y1 = Math.min(state.startY, state.currentY);
-        const width = Math.abs(state.currentX - state.startX);
-        const height = Math.abs(state.currentY - state.startY);
-
-        ctx.fillStyle = colorMap[state.selectedLabelId];
-        ctx.strokeStyle = borderColorMap[state.selectedLabelId];
-        ctx.lineWidth = 2;
-
-        ctx.fillRect(x1, y1, width, height);
-        ctx.strokeRect(x1, y1, width, height);
-    }, [state.startX, state.startY, state.currentX, state.currentY, state.selectedLabelId]);
-
-    // 削除マークを描画
-    const drawDeleteMark = useCallback((
-        ctx: CanvasRenderingContext2D,
-        x1: number, x2: number, x3: number,
-        y1: number, y2: number, y3: number
-    ) => {
-        const centerX = (x1 + x3) / 2;
-        const centerY = (y1 + y3) / 2;
-        const size = Math.min(Math.abs(x2 - x1), Math.abs(y3 - y2)) * 0.4; // ✕印のサイズ
-
-        ctx.strokeStyle = "rgb(255, 0, 0)";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        // ✕の左上から右下への線
-        ctx.moveTo(centerX - size, centerY - size);
-        ctx.lineTo(centerX + size, centerY + size);
-        // ✕の右上から左下への線
-        ctx.moveTo(centerX + size, centerY - size);
-        ctx.lineTo(centerX - size, centerY + size);
-        ctx.stroke();
-    }, []);
-
-    // 番号振り直しマークを描画
-    const drawRenumberMark = useCallback((
-        ctx: CanvasRenderingContext2D,
-        x1: number, x3: number,
-        y1: number, y3: number,
-        id: number
-    ) => {
-        const centerX = (x1 + x3) / 2;
-        const centerY = (y1 + y3) / 2;
-        
-        // 背景円
-        ctx.fillStyle = "white";
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        
-        // ID番号（縁取り付き）
-        drawText(ctx, id.toString(), centerX, centerY, {
-            textFillStyle: "black",
-            textStrokeStyle: "white",
-            textStrokeWidth: 1.5,
-            font: "bold 14px Arial",
-            textAlign: "center",
-            textBaseline: "middle"
-        });
-    }, []);
-
-    // アノテーションラベルを描画
-    const drawAnnotationLabel = useCallback((
-        ctx: CanvasRenderingContext2D,
-        anno: any,
-        x1: number, x2: number,
-        y1: number, y3: number
-    ) => {
-        const rectWidth = x2 - x1;
-        const rectHeight = y3 - y1;
-        const labelText = `${anno.id}: ${data.labels[anno.label_id]}`;
-        const bgColor = borderColorMap[anno.label_id].replace('rgb', 'rgba').replace(')', ', 0.7)');
-
-        // 矩形が十分な大きさを持つ場合の表示方法
-        if (rectWidth > 100 && rectHeight > 30) {
-            // 矩形内にラベルを表示
-            drawText(ctx, labelText, x1 + 5, y1 + 5, {
-                textFillStyle: "white",
-                textStrokeStyle: "black",
-                textStrokeWidth: 2,
-                font: "bold 12px Arial",
-                textAlign: "left",
-                textBaseline: "top",
-                withBackground: true,
-                bgFillStyle: bgColor,
-                bgRadius: 3,
-                padding: { x: 5, y: 3 }
-            });
-        } else {
-            // 矩形が小さい場合は、矩形の上に表示
-            drawText(ctx, labelText, x1 + (rectWidth / 2), y1 - 5, {
-                textFillStyle: "white",
-                textStrokeStyle: "black",
-                textStrokeWidth: 2,
-                font: "bold 12px Arial",
-                textAlign: "center",
-                textBaseline: "bottom",
-                withBackground: true,
-                bgFillStyle: bgColor,
-                bgRadius: 3,
-                padding: { x: 5, y: 3 }
-            });
-        }
-    }, [data.labels]);
-
-    // キャンバスの位置更新
-    const updateCanvasPosition = useCallback(() => {
-        if (!canvasRef.current) return;
-
-        canvasRef.current.style.transform = `scale(${state.scale}) translate(${state.offsetX / state.scale}px, ${state.offsetY / state.scale}px)`;
-        canvasRef.current.style.transformOrigin = '0 0';
-
-        // 親要素のoverflowをvisibleに設定（overflow-hidden問題の対策）
-        if (canvasRef.current.parentElement) {
-            canvasRef.current.parentElement.style.overflow = 'visible';
-        }
-    }, [canvasRef, state.scale, state.offsetX, state.offsetY]);
-
-    // カーソルスタイルの更新
-    const updateCursorStyle = useCallback(() => {
-        if (!canvasRef.current) return;
-
-        if (state.commandKeyPressed) {
-            canvasRef.current.style.cursor = 'move';
-        } else if (state.mode === 'add') {
-            canvasRef.current.style.cursor = 'crosshair';
-        } else {
-            canvasRef.current.style.cursor = 'pointer';
-        }
-    }, [canvasRef, state.commandKeyPressed, state.mode]);
-
-    return {
-        drawCanvas,
-        updateCanvasPosition,
-        updateCursorStyle
-    };
+  return {
+    drawCanvas,
+    clearCanvas,
+    updateCursorStyle,
+    updateCanvasPosition
+  };
 };

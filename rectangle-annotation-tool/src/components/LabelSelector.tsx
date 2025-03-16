@@ -13,7 +13,7 @@ const LabelSelector: React.FC = () => {
   }));
 
   // ラベルが選択できるかどうか (モードが追加の場合のみ)
-  const canSelectLabel = state.mode === 'add' && !state.selecting;
+  const canSelectLabel = state.mode.mode === 'add' && !state.selection.selecting;
 
   return (
     <div className={classNames({ 'opacity-50': !canSelectLabel })}>
@@ -21,7 +21,7 @@ const LabelSelector: React.FC = () => {
       <div className="flex flex-col space-y-1">
         {labelEntries.map((labelInfo) => {
           const color = uiColorMap[labelInfo.id];
-          const isSelected = state.selectedLabelId === labelInfo.id;
+          const isSelected = state.selection.selectedLabelId === labelInfo.id;
           
           return (
             <button
