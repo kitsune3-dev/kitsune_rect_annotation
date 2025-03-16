@@ -32,6 +32,8 @@ interface ModeState {
   lastAssignedId: number;
   commandKeyPressed: boolean;
   flashingIndices: number[];
+  // 番号振り直し前の状態を保存
+  originalAnnotations: Annotation[] | null;
 }
 
 interface AppState {
@@ -126,7 +128,8 @@ const initialModeState: ModeState = {
   mode: 'add',
   lastAssignedId: 0,
   commandKeyPressed: false,
-  flashingIndices: [] 
+  flashingIndices: [],
+  originalAnnotations: null
 };
 
 // 初期アプリケーション状態
@@ -138,7 +141,7 @@ const initialAppState: AppState = {
 
 // アクションタイプの定義
 type Action =
-  | { type: 'SET_MODE'; payload: { mode: Mode } }
+  | { type: 'SET_MODE'; payload: { mode: Mode, annotations?: Annotation[] } }
   | { type: 'SET_SELECTED_LABEL_ID'; payload: { id: number } }
   | { type: 'START_SELECTION'; payload: { x: number; y: number } }
   | { type: 'UPDATE_SELECTION'; payload: { x: number; y: number } }
@@ -155,12 +158,53 @@ type Action =
   | { type: 'ZOOM_OUT' }
   | { type: 'ZOOM_RESET' }
   | { type: 'UPDATE_CANVAS_SCALE'; payload: { scale: number } }
-  | { type: 'RENUMBER_ANNOTATION'; payload: { index: number; newId: number } };
+  | { type: 'RENUMBER_ANNOTATION'; payload: { index: number; newId: number } }
+  | { type: 'RESTORE_ORIGINAL_ANNOTATIONS' };
 
 // Reducerの実装
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_MODE':
+      // 番号振り直しモードに入る時は現在のアノテーションを保存
+      if (action.payload.mode === 'renumber' && state.mode.mode !== 'renumber') {
+        return {
+          ...state,
+          mode: {
+            ...state.mode,
+            mode: action.payload.mode,
+            lastAssignedId: 0,
+            // 番号振り直し前の状態を保存
+            originalAnnotations: action.payload.annotations || null
+          },
+          selection: {
+            ...state.selection,
+            selecting: false,
+            hoveredAnnotationIndex: -1,
+            selectedAnnotations: []
+          }
+        };
+      }
+      
+      // 番号振り直しモードから別のモードに変更する場合
+      if (state.mode.mode === 'renumber' && action.payload.mode !== 'renumber') {
+        return {
+          ...state,
+          mode: {
+            ...state.mode,
+            mode: action.payload.mode,
+            lastAssignedId: 0,
+            originalAnnotations: null // 元の状態をクリア
+          },
+          selection: {
+            ...state.selection,
+            selecting: false,
+            hoveredAnnotationIndex: -1,
+            selectedAnnotations: []
+          }
+        };
+      }
+      
+      // 通常のモード変更
       return {
         ...state,
         mode: {
@@ -173,6 +217,15 @@ function appReducer(state: AppState, action: Action): AppState {
           selecting: false,
           hoveredAnnotationIndex: -1,
           selectedAnnotations: []
+        }
+      };
+
+    case 'RESTORE_ORIGINAL_ANNOTATIONS':
+      return {
+        ...state,
+        mode: {
+          ...state.mode,
+          originalAnnotations: null // 元の状態を使用したらクリア
         }
       };
 
@@ -369,11 +422,13 @@ function appReducer(state: AppState, action: Action): AppState {
 
 // 履歴管理カスタムフック
 function useHistoryManager(initialAnnotations: Annotation[] = []) {
+  // 履歴を保持する状態
   const [history, setHistory] = useState<HistoryEntry[]>([{ annotations: initialAnnotations }]);
   const [historyIndex, setHistoryIndex] = useState(0);
-
-  // 履歴に新しい状態を追加
+  
+  // 履歴に新しい状態を追加する際の最適化処理
   const addHistoryState = useCallback((annotations: Annotation[]) => {
+    // 新しいエントリを作成（ディープコピーで安全に）
     const newEntry: HistoryEntry = {
       annotations: JSON.parse(JSON.stringify(annotations))
     };
@@ -384,6 +439,7 @@ function useHistoryManager(initialAnnotations: Annotation[] = []) {
       return [...newHistory, newEntry];
     });
 
+    // 新しい履歴を追加したので、インデックスを進める
     setHistoryIndex(prev => prev + 1);
   }, [historyIndex]);
 
@@ -443,8 +499,15 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // モード設定
   const setMode = useCallback((mode: Mode) => {
-    dispatch({ type: 'SET_MODE', payload: { mode } });
-  }, []);
+    // 番号振り直しモードに入る場合、現在のアノテーションを保存
+    if (mode === 'renumber' && state.mode.mode !== 'renumber') {
+      // 現在のアノテーションをディープコピー
+      const currentAnnotations = JSON.parse(JSON.stringify(data.annotation)) as Annotation[];
+      dispatch({ type: 'SET_MODE', payload: { mode, annotations: currentAnnotations } });
+    } else {
+      dispatch({ type: 'SET_MODE', payload: { mode } });
+    }
+  }, [state.mode.mode, data.annotation]);
 
   // 選択ラベルID設定
   const setSelectedLabelId = useCallback((id: number) => {
@@ -565,8 +628,23 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // 履歴に追加
     addHistoryState(data.annotation);
+    dispatch({ type: 'RESTORE_ORIGINAL_ANNOTATIONS' });
     return true;
   }, [state.selection.selectedAnnotations.length, data.annotation, addHistoryState]);
+
+  // 番号振り直しキャンセル時の処理
+  const cancelRenumbering = useCallback(() => {
+    if (state.mode.originalAnnotations) {
+      // 元の状態に戻す
+      setData(prev => ({
+        ...prev,
+        annotation: JSON.parse(JSON.stringify(state.mode.originalAnnotations))
+      }));
+      
+      // 履歴に追加せず、元の状態クリア
+      dispatch({ type: 'RESTORE_ORIGINAL_ANNOTATIONS' });
+    }
+  }, [state.mode.originalAnnotations]);
 
   // 未選択矩形の強調表示（最適化バージョン）
   const flashUnselectedRectangles = useCallback(() => {
@@ -604,9 +682,13 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         // 次の点滅をスケジュール
         flashTimeoutRef.current = window.setTimeout(() => {
           animateFlash(isOn ? currentCount : currentCount + 1, !isOn);
-        }, flashInterval) as unknown as null;
+        }, flashInterval) as unknown as number;
       } else {
-        // 点滅終了
+        // 点滅終了時に確実にフラッシュインデックスをクリア
+        dispatch({ 
+          type: 'SET_FLASHING_INDICES', 
+          payload: { indices: [] } 
+        });
         flashTimeoutRef.current = null;
       }
     };
@@ -704,6 +786,20 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   useEffect(() => {
     // historyManagerの初期化は自動で行われるので不要
   }, []);
+
+  // モード変更を監視し、キャンセル処理を行う
+  useEffect(() => {
+    const { mode } = state.mode;
+    
+    // 番号振り直しモードから他のモードに変更された場合
+    if (mode !== 'renumber' && state.mode.originalAnnotations !== null) {
+      if (mode === 'add') {
+        // キャンセル時には元の状態に戻す
+        cancelRenumbering();
+      }
+      // 完了時はcompleteRenumbering()が呼ばれるのでここでは処理しない
+    }
+  }, [state.mode.mode, state.mode.originalAnnotations, cancelRenumbering]);
 
   // クリーンアップ
   useEffect(() => {

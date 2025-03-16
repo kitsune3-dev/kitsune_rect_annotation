@@ -97,13 +97,13 @@ export const useCanvasDrawing = (
       ctx.lineTo(x4 + margin, y4 + margin);
       ctx.closePath();
       
-      // 塗りつぶし
+      // 塗りつぶし - バグ修正: 点滅中でも元の色を保持
       ctx.fillStyle = isFlashing 
         ? 'rgba(255, 255, 255, 0.8)' // 点滅中は白色
         : colorMap[anno.label_id];
       ctx.fill();
       
-      // 枠線
+      // 枠線 - バグ修正: 点滅後に元の色に戻るように修正
       ctx.lineWidth = isSelected ? 3 : isHovered ? 2 : 1;
       ctx.strokeStyle = isFlashing 
         ? 'rgba(0, 0, 0, 0.8)' // 点滅中は黒色

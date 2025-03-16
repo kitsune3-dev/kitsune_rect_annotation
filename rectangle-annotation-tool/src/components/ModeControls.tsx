@@ -8,7 +8,7 @@ const ModeControls: React.FC = () => {
     setMode, 
     deleteSelectedAnnotations, 
     completeRenumbering, 
-    flashUnselectedRectangles 
+    flashUnselectedRectangles
   } = useAnnotation();
 
   // OKボタンのクリックハンドラ
@@ -27,6 +27,8 @@ const ModeControls: React.FC = () => {
 
   // キャンセルボタンのクリックハンドラ
   const handleCancelClick = () => {
+    // setMode('add')を呼び出すだけで、AnnotationContext内の
+    // useEffect内でキャンセル処理が自動的に行われる
     setMode('add');
   };
 
