@@ -2,7 +2,7 @@ import React from 'react';
 import { AnnotationProvider } from './contexts/AnnotationContext';
 import { useCanvas } from './hooks/canvas/useCanvas';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import Sidebar from './components/Sidebar';
+import ResponsiveSidebar from './components/ResponsiveSidebar';
 import AnnotationCanvas from './components/AnnotationCanvas';
 import ZoomControls from './components/ZoomControls';
 
@@ -11,9 +11,9 @@ const AppContent: React.FC = () => {
   useKeyboardShortcuts();
 
   return (
-    <div className="flex h-screen">
-      <Sidebar statusMessage={statusMessage} />
-      <div className="relative flex-1" data-wheel-zoom-container="true">
+    <div className="flex flex-col md:flex-row h-screen">
+      <ResponsiveSidebar statusMessage={statusMessage} />
+      <div className="relative flex-1 h-screen md:h-auto" data-wheel-zoom-container="true">
         <AnnotationCanvas />
         <ZoomControls />
       </div>

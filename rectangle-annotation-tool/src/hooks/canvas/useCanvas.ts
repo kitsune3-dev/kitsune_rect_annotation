@@ -4,6 +4,7 @@ import { useCanvasDrawing } from './useCanvasDrawing';
 import { useCanvasCoordinates } from './useCanvasCoordinates';
 import { useCanvasEvents } from './useCanvasEvents';
 import { useCanvasStatus } from './useCanvasStatus';
+import { useCanvasTouch } from './useCanvasTouch';
 
 export const useCanvas = () => {
     // 基本的な参照の設定
@@ -11,7 +12,7 @@ export const useCanvas = () => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
     const [isImageLoaded, setIsImageLoaded] = useState(false);
-    
+
     // コンテキスト情報を取得
     const {
         data,
@@ -28,30 +29,38 @@ export const useCanvas = () => {
         setCommandKeyPressed,
         updateCanvasSize,
         zoomIn,
-        zoomOut
+        zoomOut,
+        updateCanvasScale // 新しい関数を追加
     } = useAnnotation();
 
     // 座標変換関連のフック
-    const { 
-        getCanvasCoordinates, 
-        findRectangleAtPosition 
+    const {
+        getCanvasCoordinates,
+        findRectangleAtPosition
     } = useCanvasCoordinates(canvasRef, state as any);
 
     // 描画関連のフック
-    const { 
-        drawCanvas, 
-        updateCanvasPosition, 
-        updateCursorStyle 
+    const {
+        drawCanvas,
+        updateCanvasPosition,
+        updateCursorStyle
     } = useCanvasDrawing(canvasRef, imageRef, state as any, data);
 
     // ステータスメッセージ関連のフック
-    const { 
-        statusMessage, 
-        updateStatusMessage 
+    const {
+        statusMessage,
+        updateStatusMessage
     } = useCanvasStatus(state as any, data, isImageLoaded);
 
-    // 画像ロード関連のフック
-    // この部分は独自に実装するため、useCanvasImageフックは使用しない
+    // 描画の最適化: requestAnimationFrameを使用
+    const [pendingDraw, setPendingDraw] = useState(false);
+    const requestAnimationRef = useRef<number | null>(null);
+
+    const requestDraw = useCallback(() => {
+        if (!pendingDraw) {
+            setPendingDraw(true);
+        }
+    }, [pendingDraw]);
 
     // 画像ロード完了時の処理
     useEffect(() => {
@@ -70,12 +79,12 @@ export const useCanvas = () => {
                 console.log('Image loaded successfully');
                 imageRef.current = img;
                 setIsImageLoaded(true);
-                
+
                 if (canvasRef.current) {
                     // キャンバスのサイズを画像のサイズに設定
                     canvasRef.current.width = img.naturalWidth || 800;
                     canvasRef.current.height = img.naturalHeight || 600;
-                    
+
                     updateCanvasSize(canvasRef.current.width, canvasRef.current.height);
                     drawCanvas();
                 }
@@ -84,12 +93,12 @@ export const useCanvas = () => {
             img.onerror = () => {
                 console.error('Failed to load image');
                 setIsImageLoaded(false);
-                
+
                 // プレースホルダー設定
                 if (canvasRef.current) {
                     canvasRef.current.width = 800;
                     canvasRef.current.height = 600;
-                    
+
                     const ctx = canvasRef.current.getContext('2d');
                     if (ctx) {
                         ctx.fillStyle = "#f0f0f0";
@@ -99,7 +108,7 @@ export const useCanvas = () => {
                         ctx.textAlign = "center";
                         ctx.fillText("テスト画像が見つかりません", canvasRef.current.width / 2, canvasRef.current.height / 2);
                     }
-                    
+
                     updateCanvasSize(800, 600);
                 }
             };
@@ -109,7 +118,7 @@ export const useCanvas = () => {
         };
 
         loadImage();
-        
+
         // グローバルイベントリスナー
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.metaKey || e.ctrlKey) {
@@ -134,16 +143,6 @@ export const useCanvas = () => {
         };
     }, []);
 
-    // 描画の最適化: requestAnimationFrameを使用
-    const [pendingDraw, setPendingDraw] = useState(false);
-    const requestAnimationRef = useRef<number | null>(null);
-    
-    const requestDraw = useCallback(() => {
-        if (!pendingDraw) {
-            setPendingDraw(true);
-        }
-    }, [pendingDraw]);
-
     // 描画更新のアニメーションフレーム
     useEffect(() => {
         if (pendingDraw && isImageLoaded) {
@@ -151,7 +150,7 @@ export const useCanvas = () => {
             if (requestAnimationRef.current !== null) {
                 cancelAnimationFrame(requestAnimationRef.current);
             }
-            
+
             // 新しいフレームで描画
             requestAnimationRef.current = requestAnimationFrame(() => {
                 drawCanvas();
@@ -161,7 +160,7 @@ export const useCanvas = () => {
                 setPendingDraw(false);
             });
         }
-        
+
         return () => {
             if (requestAnimationRef.current !== null) {
                 cancelAnimationFrame(requestAnimationRef.current);
@@ -176,19 +175,19 @@ export const useCanvas = () => {
         }
     }, [state, data.annotation, isImageLoaded, requestDraw]);
 
-    // イベント関連のフック
-    const { 
-        handleMouseDown, 
-        handleMouseMove, 
-        handleMouseUp, 
-        handleMouseOut, 
-        handleWheel 
+    // マウスイベント関連のフック
+    const {
+        handleMouseDown,
+        handleMouseMove,
+        handleMouseUp,
+        handleMouseOut,
+        handleWheel
     } = useCanvasEvents(
         canvasRef,
         state as any,
         getCanvasCoordinates,
         findRectangleAtPosition,
-        requestDraw, // 描画リクエスト関数
+        requestDraw,
         updateStatusMessage,
         updateCursorStyle,
         {
@@ -206,6 +205,37 @@ export const useCanvas = () => {
             zoomOut
         },
         data.annotation
+    );
+
+    // タッチイベント関連のフック
+    const {
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
+        handleTouchCancel
+    } = useCanvasTouch(
+        canvasRef,
+        containerRef,
+        state as any,
+        getCanvasCoordinates,
+        findRectangleAtPosition,
+        {
+            startSelection,
+            updateSelection,
+            finishSelection,
+            setHoveredAnnotationIndex,
+            toggleAnnotationSelection,
+            renumberAnnotation,
+            startDrag,
+            updateDrag,
+            endDrag,
+            setCommandKeyPressed,
+            zoomIn,
+            zoomOut,
+            updateCanvasScale
+        },
+        data.annotation,
+        requestDraw
     );
 
     // キャンバス強制再描画リスナー
@@ -235,6 +265,11 @@ export const useCanvas = () => {
         handleMouseUp,
         handleMouseOut,
         handleWheel,
+        // タッチイベントハンドラを追加
+        handleTouchStart,
+        handleTouchMove,
+        handleTouchEnd,
+        handleTouchCancel,
         statusMessage,
         isImageLoaded
     };

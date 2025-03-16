@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
-import { AnnotationState, AnnotationData } from '../../types/canvas';
+import { AppState, AnnotationData } from '../../types/types';
 import { colorMap, borderColorMap } from '../../utils/colorConstants';
 import { drawTextWithStroke, drawTextWithBackground } from '../../utils/drawingUtils';
 
 export const useCanvasDrawing = (
     canvasRef: React.RefObject<HTMLCanvasElement | null>,
     imageRef: React.RefObject<HTMLImageElement | null>,
-    state: AnnotationState,
+    state: AppState,
     data: AnnotationData
 ) => {
     // キャンバスの描画

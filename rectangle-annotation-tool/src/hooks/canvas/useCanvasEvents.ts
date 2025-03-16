@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { AnnotationState } from '../../types/canvas';
+import { AppState } from '../../types/types'; 
 
 export const useCanvasEvents = (
     canvasRef: React.RefObject<HTMLCanvasElement | null>,
-    state: AnnotationState,
+    state: AppState,
     getCanvasCoordinates: (clientX: number, clientY: number) => { x: number; y: number },
     findRectangleAtPosition: (x: number, y: number, annotations: any[]) => number,
     drawCanvas: () => void,

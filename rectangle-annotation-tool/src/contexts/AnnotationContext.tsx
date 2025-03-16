@@ -38,6 +38,7 @@ interface AnnotationContextProps {
   zoomOut: () => void;
   zoomReset: () => void;
   updateCanvasSize: (width: number, height: number) => void;
+  updateCanvasScale: (scale: number) => void;
 }
 
 // 初期データ
@@ -479,6 +480,15 @@ const zoomIn = useCallback(() => {
     setHistoryIndex(0);
   }, []);
 
+  // キャンバススケールを直接更新
+  const updateCanvasScale = useCallback((scale: number) => {
+    setState(prev => ({
+      ...prev,
+      scale: Math.max(0.1, Math.min(5, scale)) // 0.1から5.0の間に制限
+    }));
+  }, []);
+  
+
   // コンテキスト値
   const contextValue: AnnotationContextProps = {
     data,
@@ -507,7 +517,8 @@ const zoomIn = useCallback(() => {
     zoomIn,
     zoomOut,
     zoomReset,
-    updateCanvasSize
+    updateCanvasSize,
+    updateCanvasScale
   };
 
   return (

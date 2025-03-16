@@ -10,6 +10,10 @@ const AnnotationCanvas: React.FC = () => {
     handleMouseUp,
     handleMouseOut,
     handleWheel,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    handleTouchCancel,
     isImageLoaded
   } = useCanvas();
 
@@ -18,6 +22,10 @@ const AnnotationCanvas: React.FC = () => {
       ref={containerRef}
       className="relative flex-1 bg-gray-200" 
       onWheel={handleWheel}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
       {/* メインキャンバス */}
       <canvas

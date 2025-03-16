@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
-import { AnnotationState, AnnotationData } from '../../types/canvas';
+import { AppState, AnnotationData } from '../../types/types';
 
 export const useCanvasStatus = (
-    state: AnnotationState,
+    state: AppState,
     data: AnnotationData,
     isImageLoaded: boolean
 ) => {

@@ -20,6 +20,8 @@ export interface AnnotationData {
   annotation: Annotation[];
 }
 
+
+
 // アプリケーション状態定義
 export interface AppState {
   mode: Mode;

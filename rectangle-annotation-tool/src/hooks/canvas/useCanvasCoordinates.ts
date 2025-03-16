@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { AnnotationState } from '../../types/canvas';
+import { AppState } from '../../types/types';
 
 export const useCanvasCoordinates = (
     canvasRef: React.RefObject<HTMLCanvasElement | null>,
-    state: AnnotationState
+    state: AppState
 ) => {
     // 座標変換: クライアント座標 → キャンバス座標
     const getCanvasCoordinates = useCallback((clientX: number, clientY: number) => {
