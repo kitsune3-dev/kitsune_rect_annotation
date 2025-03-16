@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  AnnotationData, 
-  AppState, 
-  Annotation, 
-  Mode, 
-  HistoryState 
+import {
+  AnnotationData,
+  AppState,
+  Annotation,
+  Mode,
+  HistoryState
 } from '../types/types';
 
 interface AnnotationContextProps {
@@ -13,7 +13,7 @@ interface AnnotationContextProps {
   state: AppState;
   history: HistoryState[];
   historyIndex: number;
-  
+
   // アクション
   setMode: (mode: Mode) => void;
   setSelectedLabelId: (id: number) => void;
@@ -59,26 +59,26 @@ const initialData: AnnotationData = {
 };
 
 const initialState: AppState = {
-    mode: 'add',
-    selecting: false,
-    startX: 0,
-    startY: 0,
-    currentX: 0,
-    currentY: 0,
-    selectedLabelId: 1,
-    isDragging: false,
-    lastX: 0,
-    lastY: 0,
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
-    commandKeyPressed: false,
-    hoveredAnnotationIndex: -1,
-    selectedAnnotations: [],
-    lastAssignedId: 0,
-    flashingIndices: [] // 追加: 空の配列で初期化
-  };
-  
+  mode: 'add',
+  selecting: false,
+  startX: 0,
+  startY: 0,
+  currentX: 0,
+  currentY: 0,
+  selectedLabelId: 1,
+  isDragging: false,
+  lastX: 0,
+  lastY: 0,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  commandKeyPressed: false,
+  hoveredAnnotationIndex: -1,
+  selectedAnnotations: [],
+  lastAssignedId: 0,
+  flashingIndices: [] // 追加: 空の配列で初期化
+};
+
 
 // コンテキスト作成
 export const AnnotationContext = createContext<AnnotationContextProps | undefined>(undefined);
@@ -136,17 +136,17 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // 選択終了
   const finishSelection = () => {
     const { startX, startY, currentX, currentY, selectedLabelId } = state;
-    
+
     if (Math.abs(currentX - startX) > 5 && Math.abs(currentY - startY) > 5) {
       const x1 = Math.min(startX, currentX);
       const y1 = Math.min(startY, currentY);
       const x2 = Math.max(startX, currentX);
       const y2 = Math.max(startY, currentY);
-      
-      const newId = data.annotation.length > 0 
-        ? Math.max(...data.annotation.map(a => a.id)) + 1 
+
+      const newId = data.annotation.length > 0
+        ? Math.max(...data.annotation.map(a => a.id)) + 1
         : 1;
-      
+
       const newAnnotation: Annotation = {
         id: newId,
         label_id: selectedLabelId,
@@ -157,18 +157,18 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           x1, y2   // 左下
         ]
       };
-      
+
       const newAnnotations = [...data.annotation, newAnnotation];
-      
+
       // 履歴に追加
       addHistoryState(newAnnotations);
-      
+
       setData(prev => ({
         ...prev,
         annotation: newAnnotations
       }));
     }
-    
+
     setState(prev => ({
       ...prev,
       selecting: false
@@ -183,13 +183,13 @@ export const AnnotationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }));
   };
 
-// アノテーション選択トグル
-const toggleAnnotationSelection = useCallback((index: number) => {
-    
+  // アノテーション選択トグル
+  const toggleAnnotationSelection = useCallback((index: number) => {
+
     setState(prev => {
       const selectedIndex = prev.selectedAnnotations.indexOf(index);
       let newSelectedAnnotations;
-      
+
       if (selectedIndex === -1) {
         // 未選択の場合は追加
         newSelectedAnnotations = [...prev.selectedAnnotations, index];
@@ -198,21 +198,14 @@ const toggleAnnotationSelection = useCallback((index: number) => {
         newSelectedAnnotations = [...prev.selectedAnnotations];
         newSelectedAnnotations.splice(selectedIndex, 1);
       }
-      
+
       return {
         ...prev,
         selectedAnnotations: newSelectedAnnotations
       };
     });
-    
-    // 選択変更後に再描画を強制する
-    requestAnimationFrame(() => {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        const event = new Event('forceRedraw');
-        canvas.dispatchEvent(event);
-      }
-    });
+
+
   }, []);
 
   // 選択クリア
@@ -226,18 +219,18 @@ const toggleAnnotationSelection = useCallback((index: number) => {
   // 選択削除
   const deleteSelectedAnnotations = () => {
     if (state.selectedAnnotations.length > 0) {
-      const newAnnotations = data.annotation.filter((_, index) => 
+      const newAnnotations = data.annotation.filter((_, index) =>
         !state.selectedAnnotations.includes(index)
       );
-      
+
       // 履歴に追加
       addHistoryState(newAnnotations);
-      
+
       setData(prev => ({
         ...prev,
         annotation: newAnnotations
       }));
-      
+
       clearSelectedAnnotations();
     }
   };
@@ -246,19 +239,19 @@ const toggleAnnotationSelection = useCallback((index: number) => {
   const renumberAnnotation = (index: number) => {
     if (state.mode === 'renumber' && !state.selectedAnnotations.includes(index)) {
       const newLastAssignedId = state.lastAssignedId + 1;
-      
+
       setState(prev => ({
         ...prev,
         lastAssignedId: newLastAssignedId,
         selectedAnnotations: [...prev.selectedAnnotations, index]
       }));
-      
+
       const newAnnotations = [...data.annotation];
       newAnnotations[index] = {
         ...newAnnotations[index],
         id: newLastAssignedId
       };
-      
+
       setData(prev => ({
         ...prev,
         annotation: newAnnotations
@@ -271,20 +264,20 @@ const toggleAnnotationSelection = useCallback((index: number) => {
     if (state.selectedAnnotations.length < data.annotation.length) {
       return false;
     }
-    
+
     // 履歴に追加
     addHistoryState(data.annotation);
     return true;
   };
 
-// 未選択矩形の強調表示
-const flashUnselectedRectangles = useCallback(() => {
+  // 未選択矩形の強調表示
+  const flashUnselectedRectangles = useCallback(() => {
     // すでに実行中のタイムアウトがあればクリア
     if (flashTimeoutRef.current !== null) {
       clearTimeout(flashTimeoutRef.current as unknown as number);
       flashTimeoutRef.current = null;
     }
-    
+
     // 未選択のインデックスを取得
     const unselectedIndices: number[] = [];
     for (let i = 0; i < data.annotation.length; i++) {
@@ -292,25 +285,25 @@ const flashUnselectedRectangles = useCallback(() => {
         unselectedIndices.push(i);
       }
     }
-    
+
     if (unselectedIndices.length === 0) {
       return;
     }
-    
-    
+
+
     // 点滅回数カウンタ
     let count = 0;
-    
+
     const flash = () => {
       count++;
       const isHighlight = count % 2 === 1;
-      
+
       setState(prev => ({
         ...prev,
         flashingIndices: isHighlight ? unselectedIndices : []
       }));
-      
-      
+
+
       if (count < 6) { // 3回点滅（ON/OFF x 3）
         flashTimeoutRef.current = window.setTimeout(flash, 200) as unknown as null;
       } else {
@@ -322,7 +315,7 @@ const flashUnselectedRectangles = useCallback(() => {
         flashTimeoutRef.current = null;
       }
     };
-    
+
     // 最初の点滅をすぐに開始
     flash();
   }, [data.annotation, state.selectedAnnotations]);
@@ -332,13 +325,13 @@ const flashUnselectedRectangles = useCallback(() => {
     const newState: HistoryState = {
       annotations: JSON.parse(JSON.stringify(annotations))
     };
-    
+
     setHistory(prev => {
       // 現在のインデックスより後のものを削除
       const newHistory = prev.slice(0, historyIndex + 1);
       return [...newHistory, newState];
     });
-    
+
     setHistoryIndex(prev => prev + 1);
   };
 
@@ -347,7 +340,7 @@ const flashUnselectedRectangles = useCallback(() => {
     if (historyIndex > 0) {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
-      
+
       const restoredAnnotations = history[newIndex].annotations;
       setData(prev => ({
         ...prev,
@@ -361,7 +354,7 @@ const flashUnselectedRectangles = useCallback(() => {
     if (historyIndex < history.length - 1) {
       const newIndex = historyIndex + 1;
       setHistoryIndex(newIndex);
-      
+
       const restoredAnnotations = history[newIndex].annotations;
       setData(prev => ({
         ...prev,
@@ -375,7 +368,7 @@ const flashUnselectedRectangles = useCallback(() => {
     const outputData = JSON.stringify(data, null, 2);
     const blob = new Blob([outputData], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = 'annotation.json';
@@ -400,7 +393,7 @@ const flashUnselectedRectangles = useCallback(() => {
     setState(prev => {
       const dx = x - prev.lastX;
       const dy = y - prev.lastY;
-      
+
       return {
         ...prev,
         offsetX: prev.offsetX + dx,
@@ -427,8 +420,8 @@ const flashUnselectedRectangles = useCallback(() => {
     }));
   };
 
-// ズームイン
-const zoomIn = useCallback(() => {
+  // ズームイン
+  const zoomIn = useCallback(() => {
     setState(prev => {
       const newScale = prev.scale * 1.1;
       return {
@@ -437,7 +430,7 @@ const zoomIn = useCallback(() => {
       };
     });
   }, []);
-  
+
   // ズームアウト
   const zoomOut = useCallback(() => {
     setState(prev => {
@@ -448,7 +441,7 @@ const zoomIn = useCallback(() => {
       };
     });
   }, []);
-  
+
   // ズームリセット
   const zoomReset = useCallback(() => {
     setState(prev => ({
@@ -478,7 +471,7 @@ const zoomIn = useCallback(() => {
       scale: Math.max(0.1, Math.min(5, scale)) // 0.1から5.0の間に制限
     }));
   }, []);
-  
+
 
   // コンテキスト値
   const contextValue: AnnotationContextProps = {

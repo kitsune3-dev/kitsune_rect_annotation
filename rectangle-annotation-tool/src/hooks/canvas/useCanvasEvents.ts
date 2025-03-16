@@ -225,23 +225,6 @@ export const useCanvasEvents = (
         };
     }, [setCommandKeyPressed, updateCursorStyle]);
 
-    // キャンバス強制再描画リスナー
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const handleForceRedraw = () => {
-            drawCanvas();
-        };
-
-        // forceRedrawイベントリスナーを追加
-        canvas.addEventListener('forceRedraw', handleForceRedraw);
-
-        // クリーンアップ
-        return () => {
-            canvas.removeEventListener('forceRedraw', handleForceRedraw);
-        };
-    }, [canvasRef, drawCanvas]);
 
     return {
         handleMouseDown,
